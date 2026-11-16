@@ -55,7 +55,7 @@
 
 			<div
 				ref="zonePlanRef"
-				class="map-location-dots relative h-[600px] w-full p-4 2xl:h-[780px]"
+				class="map-location-dots relative h-[600px] min-w-0 flex-1 p-4 2xl:h-[780px]"
 				:class="{ 'cursor-crosshair': isEditMode && !draggingCategoryId }"
 				@drop="handleDrop"
 				@dragover.prevent
@@ -125,6 +125,7 @@ import PermissionActionButton from "~/components/common/PermissionActionButton.v
 import type { MapDotStatus } from "~/utils/monitoringStatus"
 import type { PowerLocation, PowerZone } from "~/types/power"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
+import { percentPositionFromClientPoint } from "~/utils/mapPosition"
 
 interface Props {
 	selectedZoneName: string
@@ -238,9 +239,11 @@ const handleDrop = (event: DragEvent) => {
 	event.preventDefault()
 	const locationId = event.dataTransfer?.getData("locationId")
 	if (!locationId) return
-	const rect = zonePlanRef.value.getBoundingClientRect()
-	const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))
-	const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))
+	const { x, y } = percentPositionFromClientPoint(
+		zonePlanRef.value,
+		event.clientX,
+		event.clientY
+	)
 	emit("save-location-position", { locationId, x, y })
 	draggingCategoryId.value = ""
 }

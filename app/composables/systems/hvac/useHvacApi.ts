@@ -23,6 +23,27 @@ export interface UpdateHvacZoneData {
 	locations?: (HvacLocation | Omit<HvacLocation, "id">)[]
 }
 
+export interface HvacScheduleRule {
+	id?: number
+	name: string
+	daysOfWeek: number[]
+	onTime: string
+	offTime: string
+	enabled: boolean
+	locationIds: number[]
+	createdAt?: string
+	updatedAt?: string
+}
+
+export type HvacScheduleRuleInput = {
+	name?: string
+	daysOfWeek?: number[]
+	onTime: string
+	offTime: string
+	enabled?: boolean
+	locationIds: number[]
+}
+
 export const useHvacApi = () => {
 	const zoneApi = useSystemLocationApiFactory<HvacZone, HvacLocation>({
 		systemType: "hvac",
@@ -32,6 +53,17 @@ export const useHvacApi = () => {
 	})
 
 	const { request } = useApiBase()
+
+	const getSchedules = async () => {
+		return request<{ rules: HvacScheduleRule[] }>("/hvac/schedules")
+	}
+
+	const putSchedules = async (rules: HvacScheduleRuleInput[]) => {
+		return request<{ rules: HvacScheduleRule[] }>("/hvac/schedules", {
+			method: "PUT",
+			body: { rules },
+		})
+	}
 
 	return {
 		getZones: zoneApi.getZones,
@@ -47,5 +79,7 @@ export const useHvacApi = () => {
 			request<{ zoneId: string; items: any[] }>(`/hvac/zones/${zoneId}/status`, {
 				timeout: 30_000,
 			}),
+		getSchedules,
+		putSchedules,
 	}
 }

@@ -75,7 +75,7 @@
 								:isapi-camera-devices="isapiCameraDevices"
 								:surveillance-camera-devices="surveillanceCameraDevices"
 								@update-zone="handleZoneUpdate"
-								@patch-zone="handleAccessSecurityZonePatch"
+								@patch-zone="handleIntercomZonePatch"
 								@update-location="handleLocationUpdate"
 							/>
 						</div>
@@ -148,7 +148,8 @@ import PowerLocationManagement from "./LocationManagement/PowerLocationManagemen
 import EmergencyRescueLocationManagement from "./LocationManagement/EmergencyRescueLocationManagement.vue"
 import FireLocationManagement from "./LocationManagement/FireLocationManagement.vue"
 import SmokeAlarmLocationManagement from "./LocationManagement/SmokeAlarmLocationManagement.vue"
-import AccessSecurityLocationManagement from "./LocationManagement/AccessSecurityLocationManagement.vue"
+import SecurityLocationManagement from "./LocationManagement/SecurityLocationManagement.vue"
+import IntercomLocationManagement from "./LocationManagement/IntercomLocationManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
@@ -334,7 +335,8 @@ const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	fire: FireLocationManagement,
 	emergency_rescue: EmergencyRescueLocationManagement,
 	smoke_alarm: SmokeAlarmLocationManagement,
-	access_security: AccessSecurityLocationManagement,
+	security: SecurityLocationManagement,
+	intercom: IntercomLocationManagement,
 }
 
 const locationManagementComponent = computed(() => {
@@ -354,9 +356,10 @@ const loadDevices = async () => {
 			props.systemType === "fire" ||
 			props.systemType === "emergency_rescue" ||
 			props.systemType === "smoke_alarm" ||
+			props.systemType === "security" ||
 			props.systemType === "elevator"
 				? "controller"
-				: props.systemType === "access_security"
+				: props.systemType === "intercom"
 					? "video_intercom"
 					: "sensor"
 		const result = await deviceApi.getDevices({
@@ -402,7 +405,13 @@ const loadDoors = async () => {
 }
 
 const loadAccessControlDevices = async () => {
-	if (props.systemType !== "people_counting" && props.systemType !== "elevator") return
+	if (
+		props.systemType !== "people_counting" &&
+		props.systemType !== "elevator" &&
+		props.systemType !== "security"
+	) {
+		return
+	}
 
 	try {
 		const result = await deviceApi.getDevices({
@@ -476,7 +485,7 @@ watch(
 				await ensureModuleRegistryLoaded()
 				await loadVehicleAccessFormGroups()
 			}
-			if (props.systemType === "elevator") {
+			if (props.systemType === "elevator" || props.systemType === "security") {
 				loadAccessControlDevices()
 			}
 			clearAllDrafts()
@@ -511,12 +520,13 @@ const getLocationLabel = (): string => {
 		fire: "點位",
 		emergency_rescue: "點位",
 		smoke_alarm: "點位",
+		security: "點位",
 		environment: "地點",
 		people_counting: "地點",
 		roll_call: "地點",
 		elevator: "地點",
 		vehicle_access: "地點",
-		access_security: "戶別",
+		intercom: "戶別",
 	}
 	return labelMap[props.systemType] || "地點"
 }
@@ -606,7 +616,7 @@ const handleTreeRenameFloor = (payload: {
 	oldFloor: string
 	newFloor: string
 }) => {
-	handleAccessSecurityRenameFloor(payload.zoneId, {
+	handleIntercomRenameFloor(payload.zoneId, {
 		oldFloor: payload.oldFloor,
 		newFloor: payload.newFloor,
 	})
@@ -668,8 +678,8 @@ const handleLocationUpdate = (
 	updateZone(updatedZone)
 }
 
-const handleAccessSecurityZonePatch = (zoneId: string, updates: Partial<TZone>) => {
-	if (props.systemType !== "access_security") return
+const handleIntercomZonePatch = (zoneId: string, updates: Partial<TZone>) => {
+	if (props.systemType !== "intercom") return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const manageDeviceId = (updates as { manageDeviceId?: number }).manageDeviceId
@@ -708,7 +718,7 @@ const addLocation = (zone: TZone, payload?: { viewCategory?: string; floor?: str
 	) {
 		;(newLocation as { viewCategory?: string }).viewCategory = payload.viewCategory
 	}
-	if (props.systemType === "access_security" && payload?.floor !== undefined) {
+	if (props.systemType === "intercom" && payload?.floor !== undefined) {
 		;(newLocation as { floor?: string }).floor = payload.floor
 		;(newLocation as { manageDeviceId?: number }).manageDeviceId = (
 			zone as { manageDeviceId?: number }
@@ -753,11 +763,11 @@ const handleDrainageRenameViewCategory = (
 	updateZone(updatedZone)
 }
 
-const handleAccessSecurityRenameFloor = (
+const handleIntercomRenameFloor = (
 	zoneId: string,
 	payload: { oldFloor: string; newFloor: string }
 ) => {
-	if (props.systemType !== "access_security") return
+	if (props.systemType !== "intercom") return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const oldTrim = payload.oldFloor.trim()
@@ -978,14 +988,14 @@ const handleReorderGroupBlockByKeys = (
 		props.systemType !== "air_circulation" &&
 		props.systemType !== "power" &&
 		props.systemType !== "fire" &&
-		props.systemType !== "access_security"
+		props.systemType !== "intercom"
 	)
 		return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]
 	const toKey =
-		props.systemType === "access_security"
+		props.systemType === "intercom"
 			? (loc: SystemLocationType) => {
 					const raw = String((loc as { floor?: string }).floor ?? "").trim()
 					return raw === "" ? DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY : raw

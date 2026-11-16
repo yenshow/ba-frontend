@@ -53,11 +53,11 @@
 					>
 						<div v-if="selectedZone" class="flex min-h-0 flex-1">
 							<div class="flex min-h-0 min-w-0 flex-1 flex-col gap-8">
-								<AccessSecurityMainStationPanel :station="zoneMainStation" />
-								<AccessSecurityIntercomLogTable :events="events" :locations="zoneLocations" />
+								<IntercomMainStationPanel :station="zoneMainStation" />
+								<IntercomLogTable :events="events" :locations="zoneLocations" />
 							</div>
 							<div class="ms-4 flex min-h-0 min-w-0 flex-1 flex-col border-l-2 border-white/30 ps-4">
-								<AccessSecurityIndoorPanel
+								<IntercomIndoorPanel
 									:locations="zoneLocations"
 									:ringing-location-id="ringingLocationId"
 									:talking-location-id="talkingLocationId"
@@ -121,7 +121,7 @@
 
 							<div class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
 								<template v-if="sitesZones.length > 0">
-									<AccessSecurityLocationOverviewCard
+									<IntercomLocationOverviewCard
 										v-for="zone in sitesZones"
 										:key="zone.id"
 										:zone="zone"
@@ -145,7 +145,7 @@
 
 		<ZoneManagementDialog
 			v-model="showZoneDialog"
-			system-type="access_security"
+			system-type="intercom"
 			:zones="zones"
 			:require-image-url="false"
 			:can-create-zone="canCreateLocation"
@@ -165,13 +165,13 @@ import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
-import AccessSecurityLocationOverviewCard from "~/components/access-security/AccessSecurityLocationOverviewCard.vue"
-import AccessSecurityMainStationPanel from "~/components/access-security/AccessSecurityMainStationPanel.vue"
-import AccessSecurityIntercomLogTable from "~/components/access-security/AccessSecurityIntercomLogTable.vue"
-import AccessSecurityIndoorPanel from "~/components/access-security/AccessSecurityIndoorPanel.vue"
-import { useAccessSecurityState } from "~/composables/systems/access-security/useAccessSecurityState"
-import { useAccessSecurityTalk } from "~/composables/systems/access-security/useAccessSecurityTalk"
-import { useAccessSecurityLocationApi } from "~/composables/location/api/useAccessSecurityLocationApi"
+import IntercomLocationOverviewCard from "~/components/intercom/IntercomLocationOverviewCard.vue"
+import IntercomMainStationPanel from "~/components/intercom/IntercomMainStationPanel.vue"
+import IntercomLogTable from "~/components/intercom/IntercomLogTable.vue"
+import IntercomIndoorPanel from "~/components/intercom/IntercomIndoorPanel.vue"
+import { useIntercomState } from "~/composables/systems/intercom/useIntercomState"
+import { useIntercomTalk } from "~/composables/systems/intercom/useIntercomTalk"
+import { useIntercomLocationApi } from "~/composables/location/api/useIntercomLocationApi"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useAuth } from "~/composables/core/useAuth"
 import { PERM } from "~/config/permissionCodes"
@@ -180,24 +180,24 @@ import {
 	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 } from "~/composables/location/management/useZoneManagement"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import type { AccessSecurityLocation, AccessSecurityZone } from "~/types/accessSecurity"
+import type { IntercomLocation, IntercomZone } from "~/types/intercom"
 
 definePageMeta({
 	layout: "default",
 })
 
 const { handleError } = useErrorHandler()
-const locationApi = useAccessSecurityLocationApi()
+const locationApi = useIntercomLocationApi()
 const {
 	canManageLocation,
 	canCreateLocation,
 	canUpdateLocation,
 	canDeleteLocation,
-} = useLocationModuleRbac(PERM.accessSecurity)
+} = useLocationModuleRbac(PERM.intercom)
 const { useHasPermission } = useAuth()
-const canRing = useHasPermission(PERM.accessSecurity.ring)
+const canRing = useHasPermission(PERM.intercom.ring)
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<AccessSecurityLocation, AccessSecurityZone>()
+	useZoneManagement<IntercomLocation, IntercomZone>()
 
 const {
 	sitesZones,
@@ -215,8 +215,8 @@ const {
 	initPage,
 	handleRing,
 	setupOperationalEventListener,
-} = useAccessSecurityState()
-const { talkingLocationId, talkPhase, startTalk, hangupTalk } = useAccessSecurityTalk()
+} = useIntercomState()
+const { talkingLocationId, talkPhase, startTalk, hangupTalk } = useIntercomTalk()
 
 const isOverviewCollapsed = ref(false)
 const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
@@ -244,11 +244,11 @@ const handleOpenZoneDialog = async () => {
 	}
 }
 
-const handleSaveZone = async (zone: AccessSecurityZone) => {
+const handleSaveZone = async (zone: IntercomZone) => {
 	await baseHandleSaveZone(
 		zone,
-		zones as Ref<(AccessSecurityZone & { id: string })[]>,
-		async (z: AccessSecurityZone & { id: string }) => {
+		zones as Ref<(IntercomZone & { id: string })[]>,
+		async (z: IntercomZone & { id: string }) => {
 			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
 			const locations = (z.locations || []).map((loc) => ({
 				...loc,
@@ -267,7 +267,7 @@ const handleSaveZone = async (zone: AccessSecurityZone) => {
 						manageDeviceId: z.manageDeviceId,
 						locations,
 					})
-			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as AccessSecurityZone & {
+			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as IntercomZone & {
 				id: string
 			}
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
@@ -279,10 +279,10 @@ const handleSaveZone = async (zone: AccessSecurityZone) => {
 const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(
 		zoneId,
-		zones as Ref<(AccessSecurityZone & { id: string })[]>,
+		zones as Ref<(IntercomZone & { id: string })[]>,
 		locationApi.deleteZone,
 		{
-			systemType: "access_security",
+			systemType: "intercom",
 			onAfterDelete: async () => {
 				await handleZonesSaved()
 			},

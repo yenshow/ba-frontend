@@ -38,6 +38,8 @@ const CENTRAL_MODULE_SORT_IN_CATEGORY: Record<string, number> = {
 	"/security/fire": 2,
 	"/security/emergency": 3,
 	"/security/smoke-alarm": 4,
+	"/security/intercom": 5,
+	"/security/guard": 6,
 	"/multimedia": 1,
 }
 

@@ -1,53 +1,53 @@
 import { parseFloorLabelToken } from "~/utils/elevatorFloorModel"
 import type {
-	AccessSecurityIntercomLog,
-	AccessSecurityMainStation,
-	AccessSecuritySiteLocation,
-	AccessSecuritySiteZone,
-} from "~/types/accessSecurity"
+	IntercomLog,
+	IntercomMainStation,
+	IntercomSiteLocation,
+	IntercomSiteZone,
+} from "~/types/intercom"
 
 // ── 樓層／戶別 ──────────────────────────────────────────────
 
-export const ACCESS_SECURITY_UNCLASSIFIED_FLOOR = "未分類"
+export const INTERCOM_UNCLASSIFIED_FLOOR = "未分類"
 
 const FLOOR_NAME_RE = /^(\d+F|B\d+F?|R\d+F?|RF|G)(?:[-_]?(.*))?$/i
 
-export const normalizeAccessSecurityFloor = (raw: unknown): string => {
+export const normalizeIntercomFloor = (raw: unknown): string => {
 	const trimmed = String(raw || "").trim()
 	if (!trimmed) return ""
-	return trimmed.toUpperCase() === ACCESS_SECURITY_UNCLASSIFIED_FLOOR
-		? ACCESS_SECURITY_UNCLASSIFIED_FLOOR
+	return trimmed.toUpperCase() === INTERCOM_UNCLASSIFIED_FLOOR
+		? INTERCOM_UNCLASSIFIED_FLOOR
 		: trimmed
 }
 
-export const parseAccessSecurityUnitName = (
+export const parseIntercomUnitName = (
 	name: string
 ): { floor: string; unitName: string } => {
 	const trimmed = String(name || "").trim()
 	if (!trimmed) {
-		return { floor: ACCESS_SECURITY_UNCLASSIFIED_FLOOR, unitName: "" }
+		return { floor: INTERCOM_UNCLASSIFIED_FLOOR, unitName: "" }
 	}
 	const match = FLOOR_NAME_RE.exec(trimmed)
 	if (!match) {
-		return { floor: ACCESS_SECURITY_UNCLASSIFIED_FLOOR, unitName: trimmed }
+		return { floor: INTERCOM_UNCLASSIFIED_FLOOR, unitName: trimmed }
 	}
 	const floor = String(match[1] || "").trim().toUpperCase()
 	const rest = String(match[2] || "").trim()
 	return {
-		floor: floor || ACCESS_SECURITY_UNCLASSIFIED_FLOOR,
+		floor: floor || INTERCOM_UNCLASSIFIED_FLOOR,
 		unitName: rest || trimmed,
 	}
 }
 
 /** config.floor 優先；否則從儲存名稱解析。戶號會剝離 `{floor}-` 前綴。 */
-export const splitAccessSecurityLocationName = (
+export const splitIntercomLocationName = (
 	storedName: string,
 	floorFromConfig?: string | null
 ): { floor: string; unitName: string } => {
-	const parsed = parseAccessSecurityUnitName(storedName)
-	const fromConfig = normalizeAccessSecurityFloor(floorFromConfig)
+	const parsed = parseIntercomUnitName(storedName)
+	const fromConfig = normalizeIntercomFloor(floorFromConfig)
 	const floor =
-		fromConfig && fromConfig !== ACCESS_SECURITY_UNCLASSIFIED_FLOOR
+		fromConfig && fromConfig !== INTERCOM_UNCLASSIFIED_FLOOR
 			? fromConfig
 			: parsed.floor
 	const sameFloor = parsed.floor.toUpperCase() === floor.toUpperCase()
@@ -57,20 +57,20 @@ export const splitAccessSecurityLocationName = (
 	}
 }
 
-export const formatAccessSecurityDisplayName = (
+export const formatIntercomDisplayName = (
 	floor: string | null | undefined,
 	unitName: string
 ): string => {
-	const f = normalizeAccessSecurityFloor(floor)
+	const f = normalizeIntercomFloor(floor)
 	const n = String(unitName || "").trim()
-	if (!f || f === ACCESS_SECURITY_UNCLASSIFIED_FLOOR) return n
+	if (!f || f === INTERCOM_UNCLASSIFIED_FLOOR) return n
 	if (!n) return f
 	if (n.toUpperCase().startsWith(f.toUpperCase())) return n
 	return `${f}-${n}`
 }
 
 const floorRank = (floor: string): [number, number, string] => {
-	if (!floor || floor === ACCESS_SECURITY_UNCLASSIFIED_FLOOR) {
+	if (!floor || floor === INTERCOM_UNCLASSIFIED_FLOOR) {
 		return [3, 0, floor]
 	}
 	const token = parseFloorLabelToken(floor)
@@ -80,7 +80,7 @@ const floorRank = (floor: string): [number, number, string] => {
 	return [2, token.num, floor]
 }
 
-export const compareAccessSecurityFloors = (a: string, b: string): number => {
+export const compareIntercomFloors = (a: string, b: string): number => {
 	const ra = floorRank(a)
 	const rb = floorRank(b)
 	if (ra[0] !== rb[0]) return ra[0] - rb[0]
@@ -88,7 +88,7 @@ export const compareAccessSecurityFloors = (a: string, b: string): number => {
 	return ra[2].localeCompare(rb[2], "zh-Hant")
 }
 
-export const groupAccessSecurityLocationsByFloor = <
+export const groupIntercomLocationsByFloor = <
 	T extends { floor?: string | null },
 >(
 	locations: T[]
@@ -96,27 +96,27 @@ export const groupAccessSecurityLocationsByFloor = <
 	const map = new Map<string, T[]>()
 	for (const loc of locations) {
 		const floor =
-			normalizeAccessSecurityFloor(loc.floor) || ACCESS_SECURITY_UNCLASSIFIED_FLOOR
+			normalizeIntercomFloor(loc.floor) || INTERCOM_UNCLASSIFIED_FLOOR
 		const list = map.get(floor)
 		if (list) list.push(loc)
 		else map.set(floor, [loc])
 	}
 	return [...map.entries()]
-		.sort(([a], [b]) => compareAccessSecurityFloors(a, b))
+		.sort(([a], [b]) => compareIntercomFloors(a, b))
 		.map(([floor, grouped]) => ({ floor, locations: grouped }))
 }
 
 const OVERVIEW_GRID_CELLS = 12
 
-export type AccessSecurityOverviewGridCell =
-	| { kind: "unit"; location: AccessSecuritySiteLocation }
+export type IntercomOverviewGridCell =
+	| { kind: "unit"; location: IntercomSiteLocation }
 	| { kind: "overflow"; count: number }
 	| null
 
-export const buildAccessSecurityOverviewGrid = (
-	locations: AccessSecuritySiteLocation[]
-): AccessSecurityOverviewGridCell[] => {
-	const ordered = groupAccessSecurityLocationsByFloor(locations).flatMap(
+export const buildIntercomOverviewGrid = (
+	locations: IntercomSiteLocation[]
+): IntercomOverviewGridCell[] => {
+	const ordered = groupIntercomLocationsByFloor(locations).flatMap(
 		(group) => group.locations
 	)
 	if (ordered.length <= OVERVIEW_GRID_CELLS) {
@@ -132,42 +132,42 @@ export const buildAccessSecurityOverviewGrid = (
 	]
 }
 
-export const normalizeAccessSecuritySiteLocation = (
-	loc: Omit<AccessSecuritySiteLocation, "displayName" | "unitName"> & {
+export const normalizeIntercomSiteLocation = (
+	loc: Omit<IntercomSiteLocation, "displayName" | "unitName"> & {
 		displayName?: string
 		unitName?: string
 		floor?: string | null
 	}
-): AccessSecuritySiteLocation => {
-	const { floor, unitName } = splitAccessSecurityLocationName(loc.name, loc.floor)
+): IntercomSiteLocation => {
+	const { floor, unitName } = splitIntercomLocationName(loc.name, loc.floor)
 	return {
 		...loc,
 		floor,
 		unitName,
-		displayName: formatAccessSecurityDisplayName(floor, unitName || loc.name),
+		displayName: formatIntercomDisplayName(floor, unitName || loc.name),
 	}
 }
 
-export const normalizeAccessSecuritySiteZones = (
-	zones: AccessSecuritySiteZone[]
-): AccessSecuritySiteZone[] =>
+export const normalizeIntercomSiteZones = (
+	zones: IntercomSiteZone[]
+): IntercomSiteZone[] =>
 	(zones || []).map((zone) => ({
 		...zone,
 		manageDeviceId: zone.manageDeviceId ?? null,
-		locations: (zone.locations || []).map((loc) => normalizeAccessSecuritySiteLocation(loc)),
+		locations: (zone.locations || []).map((loc) => normalizeIntercomSiteLocation(loc)),
 	}))
 
-export const resolveAccessSecurityZoneStation = (
-	zone: Pick<AccessSecuritySiteZone, "manageDeviceId">,
-	stations: AccessSecurityMainStation[]
-): AccessSecurityMainStation | null => {
+export const resolveIntercomZoneStation = (
+	zone: Pick<IntercomSiteZone, "manageDeviceId">,
+	stations: IntercomMainStation[]
+): IntercomMainStation | null => {
 	const id = Number(zone.manageDeviceId)
 	if (!Number.isInteger(id) || id <= 0) return null
 	return stations.find((st) => st.deviceId === id) ?? null
 }
 
-export const formatAccessSecurityArmingLabel = (
-	station: AccessSecurityMainStation | null | undefined
+export const formatIntercomArmingLabel = (
+	station: IntercomMainStation | null | undefined
 ): string => {
 	if (!station) return "未綁定"
 	if (!station.armed) return "未佈防"
@@ -184,13 +184,13 @@ const toPositiveInt = (raw: unknown): number | null => {
 	return Number.isInteger(n) && n > 0 ? n : null
 }
 
-const getIntercomEventLocationId = (event: AccessSecurityIntercomLog): number | null =>
+const getIntercomEventLocationId = (event: IntercomLog): number | null =>
 	toPositiveInt(event.location_id)
 
-const resolveAccessSecurityIntercomUnit = (
-	event: AccessSecurityIntercomLog,
-	locations: AccessSecuritySiteLocation[]
-): AccessSecuritySiteLocation | null => {
+const resolveIntercomUnit = (
+	event: IntercomLog,
+	locations: IntercomSiteLocation[]
+): IntercomSiteLocation | null => {
 	const locId = getIntercomEventLocationId(event)
 	if (locId != null) {
 		const hit = locations.find((loc) => loc.id === locId)
@@ -229,27 +229,27 @@ const resolveAccessSecurityIntercomUnit = (
 }
 
 const formatIntercomUnitLabel = (
-	loc: AccessSecuritySiteLocation | null,
-	event: AccessSecurityIntercomLog
+	loc: IntercomSiteLocation | null,
+	event: IntercomLog
 ): string => {
 	if (loc) return loc.displayName || loc.name
 	const raw = String(event.location_name || "").trim()
 	if (!raw) return "—"
-	const { floor, unitName } = splitAccessSecurityLocationName(raw)
-	return formatAccessSecurityDisplayName(floor, unitName || raw) || raw
+	const { floor, unitName } = splitIntercomLocationName(raw)
+	return formatIntercomDisplayName(floor, unitName || raw) || raw
 }
 
 export const getIntercomSourceBadgeClass = (source: string): string => {
 	if (source === "alert_linkage") return "bg-amber-500/80 text-white"
-	if (source === "access_security_ring") return "bg-cyan-500/80 text-white"
-	if (source === "access_security_talk") return "bg-emerald-500/80 text-white"
+	if (source === "intercom_ring") return "bg-cyan-500/80 text-white"
+	if (source === "intercom_talk") return "bg-emerald-500/80 text-white"
 	return "bg-slate-500/80 text-white"
 }
 
 export const getIntercomSourceLabel = (source: string): string => {
 	if (source === "alert_linkage") return "警報連動"
-	if (source === "access_security_ring") return "廣播"
-	if (source === "access_security_talk") return "對講"
+	if (source === "intercom_ring") return "廣播"
+	if (source === "intercom_talk") return "對講"
 	return source || "—"
 }
 
@@ -306,10 +306,10 @@ const formatIntercomMonitorSummary = (
 }
 
 export const formatIntercomMonitorRow = (
-	event: AccessSecurityIntercomLog,
-	locations: AccessSecuritySiteLocation[]
+	event: IntercomLog,
+	locations: IntercomSiteLocation[]
 ): { unit: string; summary: string } => {
-	const loc = resolveAccessSecurityIntercomUnit(event, locations)
+	const loc = resolveIntercomUnit(event, locations)
 	const unit = formatIntercomUnitLabel(loc, event)
 	return {
 		unit,

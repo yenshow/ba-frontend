@@ -462,7 +462,7 @@
 									v-if="canUseSipRingLinkage"
 									class="rounded-2xl border border-white/10 bg-white/5 p-4"
 								>
-									<p class="mb-3 text-sm font-medium text-white/90">門禁保全語音廣播</p>
+									<p class="mb-3 text-sm font-medium text-white/90">對講系統語音廣播</p>
 									<label class="flex items-center gap-3 text-sm text-white/80">
 										<input
 											v-model="sipRingLinkage.enabled"
@@ -957,7 +957,7 @@ const { hasFeature } = useLicense()
 
 const canUseCameraLinkage = computed(() => hasFeature("surveillance"))
 const canUseAccessDoorLinkage = computed(() => hasFeature("people_counting"))
-const canUseSipRingLinkage = computed(() => hasFeature("access_security"))
+const canUseSipRingLinkage = computed(() => hasFeature("intercom"))
 const canUseElevatorCallLinkage = computed(() => hasFeature("elevator"))
 
 const expandedSections = reactive({ linkage: false, notify: false })

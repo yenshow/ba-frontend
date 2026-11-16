@@ -9,7 +9,7 @@
 			"
 		>
 			<div :class="[iconBoxClass, { 'opacity-50': !station }]">
-				<AccessIntercomManageSvg />
+				<IntercomManageSvg />
 			</div>
 			<div v-if="station" class="min-w-0 flex-1">
 				<div class="mb-2 flex items-start justify-between gap-2">
@@ -20,7 +20,7 @@
 						class="shrink-0 rounded-full border px-2 py-0.5 text-xs 2xl:text-sm"
 						:class="armingBadgeClass(station)"
 					>
-						{{ formatAccessSecurityArmingLabel(station) }}
+						{{ formatIntercomArmingLabel(station) }}
 					</span>
 				</div>
 				<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-white/80 2xl:text-sm">
@@ -36,17 +36,17 @@
 </template>
 
 <script setup lang="ts">
-import type { AccessSecurityMainStation } from "~/types/accessSecurity"
-import AccessIntercomManageSvg from "~/components/access-security/AccessIntercomManageSvg.vue"
-import { formatAccessSecurityArmingLabel } from "~/utils/accessSecurity"
+import type { IntercomMainStation } from "~/types/intercom"
+import IntercomManageSvg from "~/components/intercom/IntercomManageSvg.vue"
+import { formatIntercomArmingLabel } from "~/utils/intercom"
 
 defineProps<{
-	station: AccessSecurityMainStation | null
+	station: IntercomMainStation | null
 }>()
 
 const iconBoxClass = "h-[112px] w-[208px] shrink-0 2xl:h-[176px] 2xl:w-[320px]"
 
-const armingBadgeClass = (st: AccessSecurityMainStation): string => {
+const armingBadgeClass = (st: IntercomMainStation): string => {
 	if (!st.armed) return "border-amber-400/50 bg-amber-400/20 text-amber-100"
 	if (st.armingStatus === "ready") {
 		return "border-emerald-400/50 bg-emerald-400/20 text-emerald-100"

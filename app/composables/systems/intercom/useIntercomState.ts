@@ -1,30 +1,30 @@
 /**
- * 門禁保全狀態管理：集中監控頁資料載入、事件刷新與振鈴
+ * 對講系統狀態管理：集中監控頁資料載入、事件刷新與振鈴
  */
 import { computed, ref, watch } from "vue"
-import { useAccessSecurityApi } from "~/composables/systems/access-security/useAccessSecurityApi"
-import { useAccessSecurityLocationApi } from "~/composables/location/api/useAccessSecurityLocationApi"
+import { useIntercomApi } from "~/composables/systems/intercom/useIntercomApi"
+import { useIntercomLocationApi } from "~/composables/location/api/useIntercomLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
-import { normalizeAccessSecuritySiteZones } from "~/utils/accessSecurity"
+import { normalizeIntercomSiteZones } from "~/utils/intercom"
 import type {
-	AccessSecurityIntercomLog,
-	AccessSecurityMainStation,
-	AccessSecuritySiteZone,
-	AccessSecurityZone,
-} from "~/types/accessSecurity"
+	IntercomLog,
+	IntercomMainStation,
+	IntercomSiteZone,
+	IntercomZone,
+} from "~/types/intercom"
 
-export const useAccessSecurityState = () => {
-	const accessApi = useAccessSecurityApi()
-	const locationApi = useAccessSecurityLocationApi()
+export const useIntercomState = () => {
+	const accessApi = useIntercomApi()
+	const locationApi = useIntercomLocationApi()
 	const { handleError } = useErrorHandler()
 	const toast = useToast()
 
-	const sitesZones = ref<AccessSecuritySiteZone[]>([])
-	const mainStations = ref<AccessSecurityMainStation[]>([])
+	const sitesZones = ref<IntercomSiteZone[]>([])
+	const mainStations = ref<IntercomMainStation[]>([])
 	const selectedZoneId = ref<number | null>(null)
-	const events = ref<AccessSecurityIntercomLog[]>([])
-	const zones = ref<AccessSecurityZone[]>([])
+	const events = ref<IntercomLog[]>([])
+	const zones = ref<IntercomZone[]>([])
 	const ringingLocationId = ref<number | null>(null)
 
 	const selectedZone = computed(() => {
@@ -44,7 +44,7 @@ export const useAccessSecurityState = () => {
 			accessApi.getSites(),
 			accessApi.getMainStations(),
 		])
-		sitesZones.value = normalizeAccessSecuritySiteZones(sites.zones || [])
+		sitesZones.value = normalizeIntercomSiteZones(sites.zones || [])
 		mainStations.value = stations.stations || []
 		if (!sitesZones.value.some((z) => z.id === selectedZoneId.value)) {
 			selectedZoneId.value = sitesZones.value[0]?.id ?? null

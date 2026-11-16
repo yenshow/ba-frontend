@@ -43,11 +43,11 @@ import {
 } from "~/utils/statLabels";
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
 import type { ElevatorSystemConfig } from "~/types/location";
-import type { AccessSecurityZone, AccessSecurityLocation } from "~/types/accessSecurity";
+import type { IntercomZone, IntercomLocation } from "~/types/intercom";
 import {
-	formatAccessSecurityDisplayName,
-	splitAccessSecurityLocationName,
-} from "~/utils/accessSecurity"
+	formatIntercomDisplayName,
+	splitIntercomLocationName,
+} from "~/utils/intercom"
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -284,6 +284,38 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 				viewCategory: "smoke",
 				statusPoints: {},
 			}
+		case "security": {
+			const raw =
+				config && typeof config === "object"
+					? (config as FireSystemConfig & {
+							accessDeviceIds?: number[]
+							dataSource?: import("~/types/security").SecurityDataSource
+						})
+					: ({} as FireSystemConfig & {
+							accessDeviceIds?: number[]
+							dataSource?: import("~/types/security").SecurityDataSource
+						})
+			const accessDeviceIds = Array.isArray(raw.accessDeviceIds)
+				? raw.accessDeviceIds.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+				: []
+			const dataSource =
+				raw.dataSource === "di" ||
+				raw.dataSource === "access_control" ||
+				raw.dataSource === "both"
+					? raw.dataSource
+					: undefined
+			const base = isDrainageSystemConfig(config)
+				? raw
+				: {
+						equipmentKind: "sensor" as const,
+						viewCategory: "perimeter",
+						statusPoints: {},
+						...(raw.deviceId != null ? { deviceId: raw.deviceId } : {}),
+						...(raw.location ? { location: raw.location } : {}),
+						...(raw.modbus ? { modbus: raw.modbus } : {}),
+					}
+			return { ...base, accessDeviceIds, ...(dataSource ? { dataSource } : {}) }
+		}
 		case "people_counting":
 			if (isPeopleCountingSystemConfig(config)) return config
 			return { personGroupIds: [] }
@@ -807,6 +839,55 @@ export function unifiedToSmokeAlarmZone(zone: UnifiedZone): SmokeAlarmZone {
 	}
 }
 
+export function unifiedToSecurityZone(
+	zone: UnifiedZone
+): import("~/types/security").SecurityZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const sys = loc.systems.find((s) => s.systemType === "security")
+			if (!sys || !sys.config || typeof sys.config !== "object") {
+				return []
+			}
+			const cfg = sys.config as FireSystemConfig & {
+				accessDeviceIds?: number[]
+				dataSource?: import("~/types/security").SecurityDataSource
+			}
+			const accessDeviceIds = Array.isArray(cfg.accessDeviceIds)
+				? cfg.accessDeviceIds.map(Number).filter((n) => n > 0)
+				: []
+			const hasShape =
+				isDrainageSystemConfig(cfg) ||
+				accessDeviceIds.length > 0 ||
+				"deviceId" in cfg ||
+				"location" in cfg ||
+				"dataSource" in cfg
+			if (!hasShape) return []
+			return [
+				{
+					id: loc.id,
+					systemId: sys.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					dataSource: cfg.dataSource,
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as import("~/types/security").SecurityLocation["modbus"],
+					equipmentKind: cfg.equipmentKind ?? "sensor",
+					viewCategory: cfg.viewCategory ?? "perimeter",
+					statusPoints: cfg.statusPoints,
+					accessDeviceIds,
+				} as import("~/types/security").SecurityLocation,
+			]
+		}),
+	}
+}
+
 export function smokeAlarmToUnifiedZone(
 	zone: SmokeAlarmZone,
 	systemType: SystemType = "smoke_alarm"
@@ -850,6 +931,59 @@ export function smokeAlarmLocationToUnified(
 					equipmentKind: location.equipmentKind ?? "detector",
 					viewCategory: location.viewCategory ?? "smoke",
 					statusPoints,
+				} as FireSystemConfig,
+			},
+		],
+	}
+}
+
+export function securityToUnifiedZone(
+	zone: import("~/types/security").SecurityZone,
+	systemType: SystemType = "security"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => securityLocationToUnified(location, systemType)),
+	}
+}
+
+export function securityLocationToUnified(
+	location:
+		| import("~/types/security").SecurityLocation
+		| Omit<import("~/types/security").SecurityLocation, "id">,
+	systemType: SystemType = "security"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					dataSource: location.dataSource,
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "sensor",
+					viewCategory: location.viewCategory ?? "perimeter",
+					statusPoints,
+					accessDeviceIds: location.accessDeviceIds || [],
 				} as FireSystemConfig,
 			},
 		],
@@ -1684,9 +1818,9 @@ export function elevatorLocationToUnified(
 	}
 }
 
-export function unifiedToAccessSecurityZone(zone: UnifiedZone): AccessSecurityZone {
+export function unifiedToIntercomZone(zone: UnifiedZone): IntercomZone {
 	const locations = zone.locations.flatMap((loc) => {
-		const sys = loc.systems.find((s) => s.systemType === "access_security")
+		const sys = loc.systems.find((s) => s.systemType === "intercom")
 		if (!sys) return []
 		const cfg = sys.config as {
 			indoorDeviceId?: number
@@ -1700,7 +1834,7 @@ export function unifiedToAccessSecurityZone(zone: UnifiedZone): AccessSecurityZo
 		const indoor = Number.isFinite(indoorId) && indoorId > 0 ? indoorId : undefined
 		const manageRaw = Number(cfg.manageDeviceId ?? cfg.manage_device_id)
 		const manageDeviceId = Number.isFinite(manageRaw) && manageRaw > 0 ? manageRaw : undefined
-		const { floor, unitName } = splitAccessSecurityLocationName(loc.name, cfg.floor)
+		const { floor, unitName } = splitIntercomLocationName(loc.name, cfg.floor)
 		return [
 			{
 				id: loc.id,
@@ -1712,7 +1846,7 @@ export function unifiedToAccessSecurityZone(zone: UnifiedZone): AccessSecurityZo
 				indoorDeviceId: indoor,
 				deviceId: indoor,
 				manageDeviceId,
-			} as AccessSecurityLocation,
+			} as IntercomLocation,
 		]
 	})
 	const manageDeviceId = locations.find((loc) => loc.manageDeviceId)?.manageDeviceId
@@ -1727,9 +1861,9 @@ export function unifiedToAccessSecurityZone(zone: UnifiedZone): AccessSecurityZo
 	}
 }
 
-export function accessSecurityToUnifiedZone(
-	zone: AccessSecurityZone,
-	systemType: SystemType = "access_security"
+export function intercomToUnifiedZone(
+	zone: IntercomZone,
+	systemType: SystemType = "intercom"
 ): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
 		name: zone.name,
@@ -1737,14 +1871,14 @@ export function accessSecurityToUnifiedZone(
 		...(zone.description !== undefined && { description: zone.description }),
 		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map((location) =>
-			accessSecurityLocationToUnified(location, systemType, zone.manageDeviceId)
+			intercomLocationToUnified(location, systemType, zone.manageDeviceId)
 		),
 	}
 }
 
-export function accessSecurityLocationToUnified(
-	location: AccessSecurityLocation | Omit<AccessSecurityLocation, "id">,
-	systemType: SystemType = "access_security",
+export function intercomLocationToUnified(
+	location: IntercomLocation | Omit<IntercomLocation, "id">,
+	systemType: SystemType = "intercom",
 	zoneManageDeviceId?: number
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
@@ -1755,7 +1889,7 @@ export function accessSecurityLocationToUnified(
 	const manageDeviceId = Number.isFinite(manageRaw) && manageRaw > 0 ? manageRaw : undefined
 	return {
 		...(hasId && { id: location.id! }),
-		name: formatAccessSecurityDisplayName(floor, location.name),
+		name: formatIntercomDisplayName(floor, location.name),
 		...(location.createdAt && { createdAt: location.createdAt }),
 		...pickSortOrder(location.sortOrder),
 		systems: [

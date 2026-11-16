@@ -1,0 +1,388 @@
+<template>
+	<div class="relative">
+		<div class="absolute right-4 top-4 z-20">
+			<SnapshotSyncHealthBadge
+				:state="syncHealthState"
+				:last-success-at="lastSuccessAt"
+			/>
+		</div>
+		<div class="infra-page-layout">
+			<SecurityZonePlanPanel
+				:selected-zone-name="selectedZoneName"
+				:is-initial-loading="isInitialLoading"
+				:can-write="canUpdateLocation"
+				:can-manage-zones="canManageLocation"
+				:can-manage-schedules="canManageSchedules"
+				:is-edit-mode="isEditMode"
+				:selected-zone="selectedZone"
+				:selected-zone-data="selectedZoneData"
+				:selected-category="selectedCategory"
+				:filtered-zone-locations="filteredZoneLocations"
+				:zone-plan-image="zonePlanImage"
+				:dot-status-for-location="uiStatusForLocation"
+				:get-location-alert-flash="getLocationAlertFlash"
+				:tooltip-title="tooltipTitle"
+				@open-zone-management="handleOpenZoneDialog"
+				@open-schedule-management="showScheduleDialog = true"
+				@toggle-edit-mode="handleToggleEditMode"
+				@select-category="handleSelectCategory"
+				@save-location-position="handleSaveLocationPositionFromPanel"
+				@select-location-by-location="selectLocationByLocation"
+				@section-height="leftSectionHeight = $event"
+			/>
+
+			<aside
+				class="infra-page-aside"
+				:style="leftSectionHeight ? { '--infra-aside-h': `${leftSectionHeight}px` } : undefined"
+			>
+				<SecurityMonitorCenter
+					:zones="securityZones"
+					:status-items="statusItems"
+					:selected-zone="selectedZone"
+					:manual-issue-targets="manualIssueTargets"
+					:manual-issue-default-target-id="manualIssueDefaultTargetId"
+					:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
+					@zone-selected="handleZoneSelected"
+					@manual-issue-changed="handleManualIssueChanged"
+				/>
+			</aside>
+		</div>
+	</div>
+
+	<ZoneManagementDialog
+		v-model="showZoneManagementDialog"
+		:zones="securityZones"
+		system-type="security"
+		:require-image-url="true"
+		:can-create-zone="canCreateLocation"
+		:can-update-zone="canUpdateLocation"
+		:can-delete-zone="canDeleteLocation"
+		device-hint="請先在「設備管理」中建立控制器或門禁機／讀卡機"
+		:on-save-zone="handleSaveZone"
+		@saved="handleZonesSaved"
+		@delete="handleDeleteZone"
+	/>
+
+	<SecurityScheduleDialog
+		v-model="showScheduleDialog"
+		:zones="securityZones"
+		:can-edit="canManageSchedules"
+	/>
+</template>
+
+<script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
+import { onMounted, watch, type Ref } from "vue"
+import SecurityMonitorCenter from "~/components/security/SecurityMonitorCenter.vue"
+import SecurityZonePlanPanel from "~/components/security/SecurityZonePlanPanel.vue"
+import SecurityScheduleDialog from "~/components/security/SecurityScheduleDialog.vue"
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import SnapshotSyncHealthBadge from "~/components/common/SnapshotSyncHealthBadge.vue"
+import type { SecurityZone, SecurityLocation, SecurityStatusItem } from "~/types/security"
+import { deriveSecurityUiStatus } from "~/types/security"
+import { useSecurityApi } from "~/composables/systems/security/useSecurityApi"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useToast } from "~/composables/core/useToast"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
+import { useAdminOnly, useAuth } from "~/composables/core/useAuth"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
+import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
+import { isValidPercentPosition } from "~/utils/mapPosition"
+import { useSecurityModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
+import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
+import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
+import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
+import { useInfraZoneDeepLink } from "~/composables/monitoring/useInfraZoneDeepLink"
+
+definePageMeta({
+	layout: "default",
+})
+
+import { PERM } from "~/config/permissionCodes"
+const canAdmin = useAdminOnly()
+const { hasPermission } = useAuth()
+const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocation } =
+	useLocationModuleRbac(PERM.security)
+const canManageSchedules = computed(
+	() =>
+		hasPermission(PERM.security.scheduleEdit) || hasPermission(PERM.security.locationUpdate)
+)
+const securityApi = useSecurityApi()
+const { handleError } = useErrorHandler()
+const toast = useToast()
+const { resolveInitialZoneId } = useInfraZoneDeepLink()
+
+const leftSectionHeight = ref<number | null>(null)
+
+const securityZones = ref<SecurityZone[]>([])
+const showScheduleDialog = ref(false)
+
+const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
+	alertRulesSource: "security",
+	zones: securityZones,
+	canAdmin,
+})
+
+const isLoadingZones = ref(false)
+const isInitialLoading = ref(true)
+const selectedZone = ref("")
+const selectedCategory = ref("")
+const isEditMode = ref(false)
+const showZoneManagementDialog = ref(false)
+const statusItems = ref<SecurityStatusItem[]>([])
+
+const {
+	handleSaveZone: baseHandleSaveZone,
+	handleDeleteZone: baseHandleDeleteZone,
+	sortZones,
+} = useZoneManagement<SecurityLocation, SecurityZone>()
+
+const zonesById = computed(() => new Map(securityZones.value.map((z) => [z.id || z.name, z])))
+
+const selectedZoneName = computed(() => zonesById.value.get(selectedZone.value)?.name || "")
+const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
+const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
+
+const manualIssueTargets = computed(() => {
+	if (!canAdmin.value) return []
+	const out: Array<{ id: string; label: string }> = []
+	for (const zone of securityZones.value) {
+		for (const loc of zone.locations || []) {
+			if (!loc.systemId) continue
+			out.push({
+				id: String(loc.systemId),
+				label: `${zone.name} / ${loc.name}（#${String(loc.systemId)}）`,
+			})
+		}
+	}
+	return out
+})
+
+const manualIssueDefaultTargetId = computed(() => {
+	const first = manualIssueTargets.value[0]
+	return first?.id || ""
+})
+
+const filteredZoneLocations = computed(() => {
+	if (!selectedZone.value) return []
+	const zone = selectedZoneData.value
+	return (zone?.locations || []).filter((loc) => isValidPercentPosition(loc.location))
+})
+
+const statusBySystemId = computed(() => {
+	const m = new Map<string, SecurityStatusItem>()
+	for (const it of statusItems.value) m.set(String(it.systemId), it)
+	return m
+})
+
+const uiStatusForLocation = (loc: SecurityLocation): SecurityStatusItem["uiStatus"] => {
+	if (!loc.systemId) return "warning"
+	return deriveSecurityUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
+}
+
+const getLocationAlertFlash = (loc: SecurityLocation): "none" | "slow" | "fast" => {
+	const s = uiStatusForLocation(loc)
+	if (s === "normal") return "none"
+	if (s === "alarm") return "fast"
+	return "slow"
+}
+
+const tooltipTitle = (loc: SecurityLocation) => {
+	const s = uiStatusForLocation(loc)
+	const label =
+		s === "normal" ? "正常" : s === "warning" ? "異常" : "警報"
+	return `${loc.name}（${label}）`
+}
+
+const handleZoneSelected = (zoneId: string) => {
+	selectedZone.value = zoneId
+	selectedCategory.value = ""
+}
+
+const findLocationOriginalIndex = (zone: SecurityZone, target: SecurityLocation) => {
+	return findLocationIndexInZone(zone, target)
+}
+
+const getLocationIdForDisplay = (location: SecurityLocation): string => {
+	const zone = selectedZoneData.value
+	if (!zone) return ""
+	const idx = findLocationOriginalIndex(zone, location)
+	return idx !== -1 ? getLocationUiKey({ zone, location, locationIndex: idx }) : ""
+}
+
+const selectLocationByLocation = (location: SecurityLocation) => {
+	const zone = selectedZoneData.value
+	if (!zone) return
+	const idx = findLocationOriginalIndex(zone, location)
+	if (idx !== -1) {
+		selectedCategory.value = getLocationUiKey({ zone, location, locationIndex: idx })
+	}
+}
+
+const handleSelectCategory = (locationId: string) => {
+	selectedCategory.value = locationId
+}
+
+const findLocationById = (locationId: string): { zone: SecurityZone; locationIndex: number } | null => {
+	for (const zone of securityZones.value) {
+		const idx = zone.locations.findIndex(
+			(loc, i) => getLocationUiKey({ zone, location: loc, locationIndex: i }) === locationId
+		)
+		if (idx !== -1) return { zone, locationIndex: idx }
+	}
+	return null
+}
+
+const handleSaveLocationPositionFromPanel = async (payload: { locationId: string; x: number; y: number }) => {
+	if (!isEditMode.value) return
+	const found = findLocationById(payload.locationId)
+	if (!found) return
+	const { zone: targetZone, locationIndex } = found
+	const updatedLocations = targetZone.locations.map((location, index) =>
+		index === locationIndex ? { ...location, location: { x: payload.x, y: payload.y } } : location
+	)
+	try {
+		const result = await securityApi.updateZone(targetZone.id!, {
+			name: targetZone.name,
+			imageUrl: targetZone.imageUrl,
+			locations: updatedLocations,
+		})
+		const zi = securityZones.value.findIndex((z) => z.id === targetZone.id)
+		if (zi > -1) securityZones.value[zi] = result.zone
+		toast.success(TOAST.POINT_UPDATED)
+	} catch (error) {
+		handleError(error, "更新位置失敗")
+	}
+}
+
+const loadZonesFromAPI = async () => {
+	if (isLoadingZones.value) return
+	isLoadingZones.value = true
+	try {
+		const result = await securityApi.getZones()
+		securityZones.value = result.zones || []
+		if (!selectedZone.value && securityZones.value.length > 0) {
+			selectedZone.value = resolveInitialZoneId(securityZones.value, (zs) => sortZones(zs)[0])
+		}
+	} catch (error) {
+		handleError(error, "載入區域列表失敗")
+	} finally {
+		isLoadingZones.value = false
+	}
+}
+
+const {
+	syncHealthState,
+	lastSuccessAt,
+	statusItems: computedStatusItems,
+	preloadDeviceInfos,
+	loadStatusSnapshot,
+	patchOptimistic,
+	startSnapshotSync,
+	stopSnapshotSync,
+	handleVisibilityChange,
+} = useSecurityModbusIntegration(securityZones)
+
+const snapshotSync = useVisibilitySnapshotSync({
+	start: startSnapshotSync,
+	stop: stopSnapshotSync,
+	onVisible: handleVisibilityChange,
+})
+
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
+	if (payload?.action === "clear") return
+	if (payload?.systemId) {
+		patchOptimistic(payload.systemId, "alarm")
+	}
+	void loadStatusSnapshot({ force: true })
+}
+
+watch(
+	computedStatusItems,
+	(next) => {
+		statusItems.value = next
+	},
+	{ immediate: true }
+)
+
+const handleSaveZone = async (zone: SecurityZone) => {
+	await baseHandleSaveZone(
+		zone as SecurityZone & { id: string },
+		securityZones as Ref<(SecurityZone & { id: string })[]>,
+		async (z: SecurityZone & { id: string }) => {
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
+			const result = isValidId
+				? await securityApi.updateZone(z.id, {
+						name: z.name,
+						imageUrl: z.imageUrl,
+						sortOrder: z.sortOrder,
+						locations: z.locations,
+					})
+				: await securityApi.createZone({
+						name: z.name,
+						imageUrl: z.imageUrl,
+						sortOrder: z.sortOrder,
+						locations: z.locations,
+					})
+			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as SecurityZone & { id: string }
+			return { merged: result.merged, message: result.message, zone: zoneWithId }
+		},
+		{ selectedZoneRef: selectedZone, ...ZONE_DIALOG_BATCH_SAVE_OPTIONS }
+	)
+}
+
+const handleDeleteZone = async (zoneId: string) => {
+	await baseHandleDeleteZone(zoneId, securityZones as Ref<(SecurityZone & { id: string })[]>, securityApi.deleteZone, {
+		selectedZoneRef: selectedZone,
+		systemType: "security",
+		onAfterDelete: async () => {
+			await loadZonesFromAPI()
+		},
+	})
+}
+
+const handleZonesSaved = async () => {
+	await loadZonesFromAPI()
+	await preloadDeviceInfos()
+	await loadStatusSnapshot({ force: true })
+}
+
+const handleOpenZoneDialog = async () => {
+	if (!canManageLocation.value) return
+	if (securityZones.value.length === 0) await loadZonesFromAPI()
+	showZoneManagementDialog.value = true
+}
+
+const handleToggleEditMode = () => {
+	if (!isEditMode.value && securityZones.value.length === 0) void loadZonesFromAPI()
+	isEditMode.value = !isEditMode.value
+}
+
+const syncSelectedCategoryToVisibleOnMap = () => {
+	const visible = filteredZoneLocations.value
+	if (visible.length === 0) {
+		selectedCategory.value = ""
+		return
+	}
+	const exists = visible.some((loc) => getLocationIdForDisplay(loc) === selectedCategory.value)
+	if (!exists) selectedCategory.value = getLocationIdForDisplay(visible[0]!)
+}
+
+watch([securityZones, selectedZone], () => syncSelectedCategoryToVisibleOnMap(), { deep: true, immediate: true })
+
+onMounted(async () => {
+	try {
+		await loadZonesFromAPI()
+		await preloadDeviceInfos()
+		await loadStatusSnapshot()
+	} finally {
+		isInitialLoading.value = false
+	}
+	snapshotSync.start()
+})
+
+</script>
+

@@ -8,14 +8,15 @@ import {
 	visitSystemPage,
 } from "./helpers/selectors"
 
-/** 消防／緊急／煙霧：水電同型樓層平面（樓層管理） */
+/** 消防／緊急／煙霧／保全：水電同型樓層平面（樓層管理） */
 const FLOOR_PAGES = [
 	{ path: "/security/fire", title: "消防系統" },
 	{ path: "/security/emergency", title: "緊急求救" },
 	{ path: "/security/smoke-alarm", title: "煙霧警報" },
+	{ path: "/security/guard", title: "保全系統" },
 ] as const
 
-test.describe("安防（環境／消防／緊急／煙霧）", () => {
+test.describe("安防（環境／消防／緊急／煙霧／保全）", () => {
 	test("環境品質 /security/environment：總覽、地點管理、完整報表", async ({ page }) => {
 		const guards = attachPageGuards(page)
 		await visitSystemPage(page, {

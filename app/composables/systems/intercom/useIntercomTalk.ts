@@ -7,14 +7,14 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
 import { logger } from "~/utils/logger"
 
-export type AccessSecurityTalkPhase = "idle" | "ringing" | "talking"
+export type IntercomTalkPhase = "idle" | "ringing" | "talking"
 
-const talkLogger = logger.createLogger("AccessSecurityTalk")
+const talkLogger = logger.createLogger("IntercomTalk")
 
-const EVENT_START = "access-security:talk:start"
-const EVENT_PCM = "access-security:talk:pcm"
-const EVENT_HANGUP = "access-security:talk:hangup"
-const EVENT_STATUS = "access-security:talk:status"
+const EVENT_START = "intercom:talk:start"
+const EVENT_PCM = "intercom:talk:pcm"
+const EVENT_HANGUP = "intercom:talk:hangup"
+const EVENT_STATUS = "intercom:talk:status"
 
 const FRAME_SAMPLES = 160
 const CAPTURE_WORKLET = `
@@ -81,13 +81,13 @@ const downsampleTo8k = (input: Float32Array, inputRate: number): Int16Array => {
 	return out
 }
 
-export const useAccessSecurityTalk = () => {
+export const useIntercomTalk = () => {
 	const { isConnected, emit, on, off } = useWebSocket()
 	const { handleError } = useErrorHandler()
 	const toast = useToast()
 
 	const talkingLocationId = ref<number | null>(null)
-	const talkPhase = ref<AccessSecurityTalkPhase>("idle")
+	const talkPhase = ref<IntercomTalkPhase>("idle")
 
 	let mediaStream: MediaStream | null = null
 	let captureCtx: AudioContext | null = null

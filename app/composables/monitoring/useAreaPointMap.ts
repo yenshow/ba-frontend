@@ -16,6 +16,7 @@ import type { HvacZone } from "~/types/hvac"
 import type { FireZone } from "~/types/fire"
 import type { AirCirculationZone } from "~/types/air-circulation"
 import type { SmokeAlarmZone } from "~/types/smoke-alarm"
+import type { SecurityZone } from "~/types/security"
 import type { EmergencyRescueZone } from "~/types/emergency-rescue"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
@@ -24,6 +25,7 @@ import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useFireApi } from "~/composables/systems/fire/useFireApi"
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
+import { useSecurityApi } from "~/composables/systems/security/useSecurityApi"
 import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
 import { useMonitoringOverviewApi } from "~/composables/monitoring/useMonitoringOverviewApi"
 import { useMonitoringSnapshotWebSocket } from "~/composables/monitoring/useMonitoringSnapshotWebSocket"
@@ -33,6 +35,7 @@ import {
 	useEmergencyRescueModbusIntegration,
 	useFireModbusIntegration,
 	usePowerModbusIntegration,
+	useSecurityModbusIntegration,
 	useSmokeAlarmModbusIntegration,
 } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
 import {
@@ -52,6 +55,7 @@ export const AREA_POINT_MODBUS_SYSTEMS = [
 	"air_circulation",
 	"smoke_alarm",
 	"emergency_rescue",
+	"security",
 ] as const
 
 export type AreaPointModbusSystem = (typeof AREA_POINT_MODBUS_SYSTEMS)[number]
@@ -65,6 +69,7 @@ const MODULE_BY_SYSTEM: Record<AreaPointModbusSystem, string> = {
 	air_circulation: PERM.airCirculation.module,
 	smoke_alarm: PERM.smokeAlarm.module,
 	emergency_rescue: PERM.emergencyRescue.module,
+	security: PERM.security.module,
 }
 
 export const isAreaPointModbusSystem = (systemType: SystemType): systemType is AreaPointModbusSystem =>
@@ -151,6 +156,7 @@ export const useAreaPointMap = (options: {
 	const hvacApi = useHvacApi()
 	const airCirculationApi = useAirCirculationApi()
 	const smokeAlarmApi = useSmokeAlarmApi()
+	const securityApi = useSecurityApi()
 	const emergencyRescueApi = useEmergencyRescueApi()
 	const monitoringOverviewApi = useMonitoringOverviewApi()
 
@@ -161,6 +167,7 @@ export const useAreaPointMap = (options: {
 	const hvacZones = ref<HvacZone[]>([])
 	const airCirculationZones = ref<AirCirculationZone[]>([])
 	const smokeAlarmZones = ref<SmokeAlarmZone[]>([])
+	const securityZones = ref<SecurityZone[]>([])
 	const emergencyRescueZones = ref<EmergencyRescueZone[]>([])
 
 	const {
@@ -244,6 +251,17 @@ export const useAreaPointMap = (options: {
 	} = useSmokeAlarmModbusIntegration(smokeAlarmZones, modbusIntegrationOptions("smoke_alarm"))
 
 	const {
+		statusItems: securityStatusItems,
+		preloadDeviceInfos: preloadSecurityDevices,
+		loadStatusSnapshot: loadSecuritySnapshot,
+		setStatusItems: setSecurityStatusItems,
+		patchStatusItems: patchSecurityStatusItems,
+		startSnapshotSync: startSecuritySnapshotSync,
+		stopSnapshotSync: stopSecuritySnapshotSync,
+		handleVisibilityChange: handleSecurityVisibilityChange,
+	} = useSecurityModbusIntegration(securityZones, modbusIntegrationOptions("security"))
+
+	const {
 		statusItems: emergencyRescueStatusItems,
 		preloadDeviceInfos: preloadEmergencyRescueDevices,
 		loadStatusSnapshot: loadEmergencyRescueSnapshot,
@@ -265,6 +283,9 @@ export const useAreaPointMap = (options: {
 	)
 	const smokeAlarmUiStatusByLocationId = computed(() =>
 		buildUiStatusMap(smokeAlarmStatusItems.value || [])
+	)
+	const securityUiStatusByLocationId = computed(() =>
+		buildUiStatusMap(securityStatusItems.value || [])
 	)
 	const emergencyRescueUiStatusByLocationId = computed(() =>
 		buildUiStatusMap(emergencyRescueStatusItems.value || [])
@@ -313,6 +334,7 @@ export const useAreaPointMap = (options: {
 		power: powerUiStatusByLocationId,
 		air_circulation: airCirculationUiStatusByLocationId,
 		smoke_alarm: smokeAlarmUiStatusByLocationId,
+		security: securityUiStatusByLocationId,
 		emergency_rescue: emergencyRescueUiStatusByLocationId,
 	}
 
@@ -328,6 +350,7 @@ export const useAreaPointMap = (options: {
 		hvac: hvacZones,
 		air_circulation: airCirculationZones,
 		smoke_alarm: smokeAlarmZones,
+		security: securityZones,
 		emergency_rescue: emergencyRescueZones,
 	} as const
 
@@ -395,6 +418,14 @@ export const useAreaPointMap = (options: {
 		hasLoadedBySystem.smoke_alarm.value = true
 		if (opts.startSync) startSmokeAlarmSnapshotSync()
 	}
+	const loadSecurityStatusSnapshot = async (opts: { startSync: boolean }) => {
+		const result = await securityApi.getZones()
+		securityZones.value = result.zones || []
+		await preloadSecurityDevices()
+		await loadSecuritySnapshot()
+		hasLoadedBySystem.security.value = true
+		if (opts.startSync) startSecuritySnapshotSync()
+	}
 
 	const loadEmergencyRescueStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await emergencyRescueApi.getZones()
@@ -416,6 +447,7 @@ export const useAreaPointMap = (options: {
 		hvac: loadHvacStatusSnapshot,
 		air_circulation: loadAirCirculationStatusSnapshot,
 		smoke_alarm: loadSmokeAlarmStatusSnapshot,
+		security: loadSecurityStatusSnapshot,
 		emergency_rescue: loadEmergencyRescueStatusSnapshot,
 	}
 
@@ -427,6 +459,7 @@ export const useAreaPointMap = (options: {
 		hvac: stopHvacSnapshotSync,
 		air_circulation: stopAirCirculationSnapshotSync,
 		smoke_alarm: stopSmokeAlarmSnapshotSync,
+		security: stopSecuritySnapshotSync,
 		emergency_rescue: stopEmergencyRescueSnapshotSync,
 	}
 
@@ -438,6 +471,7 @@ export const useAreaPointMap = (options: {
 		hvac: handleHvacVisibilityChange,
 		air_circulation: handleAirCirculationVisibilityChange,
 		smoke_alarm: handleSmokeAlarmVisibilityChange,
+		security: handleSecurityVisibilityChange,
 		emergency_rescue: handleEmergencyRescueVisibilityChange,
 	}
 
@@ -468,6 +502,7 @@ export const useAreaPointMap = (options: {
 		if (system === "power") patchPowerStatusItems(items as never[])
 		if (system === "air_circulation") patchAirCirculationStatusItems(items as never[])
 		if (system === "smoke_alarm") patchSmokeAlarmStatusItems(items as never[])
+		if (system === "security") patchSecurityStatusItems(items as never[])
 		if (system === "emergency_rescue") patchEmergencyRescueStatusItems(items as never[])
 	}
 
@@ -502,6 +537,7 @@ export const useAreaPointMap = (options: {
 			if (system === "power") await preloadPowerDevices()
 			if (system === "air_circulation") await preloadAirCirculationDevices()
 			if (system === "smoke_alarm") await preloadSmokeAlarmDevices()
+			if (system === "security") await preloadSecurityDevices()
 			if (system === "emergency_rescue") await preloadEmergencyRescueDevices()
 		}
 		hasLoadedBySystem[system].value = true
@@ -510,6 +546,7 @@ export const useAreaPointMap = (options: {
 		if (system === "power") setPowerStatusItems(items)
 		if (system === "air_circulation") setAirCirculationStatusItems(items)
 		if (system === "smoke_alarm") setSmokeAlarmStatusItems(items)
+		if (system === "security") setSecurityStatusItems(items)
 		if (system === "emergency_rescue") setEmergencyRescueStatusItems(items)
 	}
 

@@ -5,7 +5,7 @@
 
 import type { SystemType } from "~/types/location"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
-import type { AccessSecurityZone, AccessSecurityLocation } from "~/types/accessSecurity"
+import type { IntercomZone, IntercomLocation } from "~/types/intercom"
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator"
 import type { HvacZone, HvacLocation } from "~/types/hvac"
 import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
@@ -17,6 +17,7 @@ import type { PowerZone, PowerLocation } from "~/types/power"
 import type { FireZone, FireLocation } from "~/types/fire"
 import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
 import type { SmokeAlarmZone, SmokeAlarmLocation } from "~/types/smoke-alarm"
+import type { SecurityZone, SecurityLocation } from "~/types/security"
 import { getLocationUiKey } from "~/utils/locationUiId"
 
 export type SystemZoneType =
@@ -31,8 +32,9 @@ export type SystemZoneType =
 	| FireZone
 	| EmergencyRescueZone
 	| SmokeAlarmZone
+	| SecurityZone
 	| ElevatorZone
-	| AccessSecurityZone
+	| IntercomZone
 export type SystemLocationType =
 	| LightingLocation
 	| HvacLocation
@@ -45,8 +47,9 @@ export type SystemLocationType =
 	| FireLocation
 	| EmergencyRescueLocation
 	| SmokeAlarmLocation
+	| SecurityLocation
 	| ElevatorLocation
-	| AccessSecurityLocation
+	| IntercomLocation
 
 /**
  * 系統配置
@@ -443,6 +446,41 @@ export function useSmokeAlarmZoneAdapter(): ZoneSystemAdapter<SmokeAlarmZone, Sm
 	}
 }
 
+export function useSecurityZoneAdapter(): ZoneSystemAdapter<SecurityZone, SecurityLocation> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: true,
+	}
+
+	return {
+		getLocationsProperty: (zone: SecurityZone) => zone.locations || [],
+		setLocationsProperty: (zone: SecurityZone, locations: SecurityLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): SecurityLocation => ({
+			name: "",
+			dataSource: "di",
+			equipmentKind: "sensor",
+			viewCategory: "perimeter",
+			statusPoints: {},
+			accessDeviceIds: [],
+			createdAt: new Date().toISOString(),
+		}),
+		createNewZone: (name: string): SecurityZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: SecurityZone): SecurityZone => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone: zone as any, location: location as any, locationIndex })
+		},
+	}
+}
+
 /**
  * 車輛進出系統適配器
  */
@@ -515,33 +553,33 @@ export function useElevatorZoneAdapter(): ZoneSystemAdapter<ElevatorZone, Elevat
 	}
 }
 
-export function useAccessSecurityZoneAdapter(): ZoneSystemAdapter<
-	AccessSecurityZone,
-	AccessSecurityLocation
+export function useIntercomZoneAdapter(): ZoneSystemAdapter<
+	IntercomZone,
+	IntercomLocation
 > {
 	const systemConfig: SystemConfig = {
 		requireImageUrl: false,
 	}
 
 	return {
-		getLocationsProperty: (zone: AccessSecurityZone) => zone.locations || [],
-		setLocationsProperty: (zone: AccessSecurityZone, locations: AccessSecurityLocation[]) => ({
+		getLocationsProperty: (zone: IntercomZone) => zone.locations || [],
+		setLocationsProperty: (zone: IntercomZone, locations: IntercomLocation[]) => ({
 			...zone,
 			locations,
 		}),
-		createNewLocation: (): AccessSecurityLocation => ({
+		createNewLocation: (): IntercomLocation => ({
 			name: "",
 			floor: "1F",
 			indoorDeviceId: undefined,
 			deviceId: undefined,
 			manageDeviceId: undefined,
 		}),
-		createNewZone: (name: string): AccessSecurityZone => ({
+		createNewZone: (name: string): IntercomZone => ({
 			name,
 			locations: [],
 			manageDeviceId: undefined,
 		}),
-		filterEmptyLocations: (zone: AccessSecurityZone): AccessSecurityZone => ({
+		filterEmptyLocations: (zone: IntercomZone): IntercomZone => ({
 			...zone,
 			locations: (zone.locations || []).filter(
 				(loc) =>
@@ -587,10 +625,12 @@ export function useZoneSystemAdapter<
 			return useEmergencyRescueZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "smoke_alarm":
 			return useSmokeAlarmZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "security":
+			return useSecurityZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "elevator":
 			return useElevatorZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
-		case "access_security":
-			return useAccessSecurityZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "intercom":
+			return useIntercomZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		default:
 			throw new Error(`不支援的系統類型: ${systemType}`)
 	}

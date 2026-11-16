@@ -1,5 +1,5 @@
 /** 地點管理／表單用（id 與 UnifiedZone／ZoneManagementDialog 相同為字串） */
-export type AccessSecurityLocation = {
+export type IntercomLocation = {
 	id?: string
 	systemId?: string
 	/** 戶號（不含樓層前綴；儲存時 adapter 會組成 `{floor}-{name}`） */
@@ -15,10 +15,10 @@ export type AccessSecurityLocation = {
 	manageDeviceId?: number
 }
 
-export type AccessSecurityZone = {
+export type IntercomZone = {
 	id?: string
 	name: string
-	locations: AccessSecurityLocation[]
+	locations: IntercomLocation[]
 	imageUrl?: string
 	description?: string
 	sortOrder?: number
@@ -26,8 +26,8 @@ export type AccessSecurityZone = {
 	manageDeviceId?: number
 }
 
-/** `/access-security/sites` 總覽列（voipNumber／host 不進本 API；SIP 直撥讀設備檔） */
-export type AccessSecuritySiteLocation = {
+/** `/intercom/sites` 總覽列（voipNumber／host 不進本 API；SIP 直撥讀設備檔） */
+export type IntercomSiteLocation = {
 	id: number
 	name: string
 	systemId: number
@@ -40,14 +40,14 @@ export type AccessSecuritySiteLocation = {
 	unitName: string
 }
 
-export type AccessSecuritySiteZone = {
+export type IntercomSiteZone = {
 	id: number
 	name: string
-	locations: AccessSecuritySiteLocation[]
+	locations: IntercomSiteLocation[]
 	manageDeviceId: number | null
 }
 
-export type AccessSecurityMainStation = {
+export type IntercomMainStation = {
 	deviceId: number
 	name: string
 	host: string | null
@@ -56,15 +56,15 @@ export type AccessSecurityMainStation = {
 	armingStatus: string
 }
 
-/** POST /access-security/locations/:id/ring（前端只用 ok／result／played） */
-export type AccessSecurityInviteResult = {
+/** POST /intercom/locations/:id/ring（前端只用 ok／result／played） */
+export type IntercomInviteResult = {
 	ok: boolean
 	result: string
 	played?: boolean
 }
 
-/** GET /access-security/zones/:id/logs/latest（監控頁對講事件；層 2） */
-export type AccessSecurityIntercomLog = {
+/** GET /intercom/zones/:id/logs/latest（監控頁對講事件；層 2） */
+export type IntercomLog = {
 	id: number
 	created_at: string
 	source: string

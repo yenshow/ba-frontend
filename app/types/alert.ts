@@ -8,6 +8,7 @@ export type AlertSource =
 	| "energy"
 	| "fire"
 	| "smoke_alarm"
+	| "security"
 	| "emergency_rescue"
 
 export type AlertStatus = "active" | "resolved" | "ignored"

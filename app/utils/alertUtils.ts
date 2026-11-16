@@ -56,6 +56,7 @@ export const ALERT_SOURCE_LABELS: Record<string, string> = {
 	fire: SYSTEM_TYPE_LABELS.fire,
 	smoke_alarm: SYSTEM_TYPE_LABELS.smoke_alarm,
 	emergency_rescue: SYSTEM_TYPE_LABELS.emergency_rescue,
+	security: SYSTEM_TYPE_LABELS.security,
 }
 
 export const getSourceLabel = (source: AlertSource | string): string =>
@@ -70,6 +71,7 @@ const ALERT_SOURCE_FILTER_SUFFIX_KEYS = new Set([
 	"fire",
 	"smoke_alarm",
 	"emergency_rescue",
+	"security",
 ])
 
 export const getAlertSourceFilterLabel = (source: string): string => {
@@ -95,6 +97,7 @@ export const ALERT_LOG_SOURCE_FILTER_KEYS = [
 	"fire",
 	"smoke_alarm",
 	"emergency_rescue",
+	"security",
 ] as const
 
 export const ALERT_RULE_SOURCE_FILTER_KEYS = [
@@ -108,6 +111,7 @@ export const ALERT_RULE_SOURCE_FILTER_KEYS = [
 	"fire",
 	"smoke_alarm",
 	"emergency_rescue",
+	"security",
 ] as const
 
 /**
@@ -265,6 +269,7 @@ const SOURCE_SYSTEM_TYPE_MAP: Partial<Record<AlertSource, SystemType>> = {
 	emergency_rescue: "emergency_rescue",
 	air_circulation: "air_circulation",
 	power: "power",
+	security: "security",
 }
 
 export const alertSourceToSystemType = (source: AlertSource): SystemType | null =>

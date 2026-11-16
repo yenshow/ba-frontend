@@ -25,7 +25,8 @@ export type SystemType =
 	| "roll_call"
 	| "vehicle_access"
 	| "elevator"
-	| "access_security";
+	| "intercom"
+	| "security";
 
 export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
@@ -41,7 +42,8 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	roll_call: "時段簽到",
 	vehicle_access: "車輛進出",
 	elevator: "電梯管理",
-	access_security: "門禁保全",
+	intercom: "對講系統",
+	security: "保全系統",
 };
 
 export const getSystemTypeLabel = (systemType: SystemType): string =>
@@ -64,7 +66,7 @@ export type SystemConfig =
 	| RollCallSystemConfig
 	| VehicleAccessSystemConfig
 	| ElevatorSystemConfig
-	| AccessSecuritySystemConfig;
+	| IntercomSystemConfig;
 
 /** 時段簽到僅工地頁使用；智慧管理平台保留設定以免覆寫門禁機綁定 */
 export interface RollCallSystemConfig {
@@ -290,10 +292,10 @@ export interface ElevatorSystemConfig {
 }
 
 /**
- * 門禁保全（視訊對講）地點配置
+ * 對講系統（視訊對講）地點配置
  * 後端持久化為 system_config.indoor_device_id、system_config.floor；manage_device_id 選填
  */
-export interface AccessSecuritySystemConfig {
+export interface IntercomSystemConfig {
 	indoorDeviceId?: number;
 	/** 與 indoorDeviceId 同義（表單／adapter 相容） */
 	deviceId?: number;

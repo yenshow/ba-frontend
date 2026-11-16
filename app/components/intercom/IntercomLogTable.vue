@@ -58,13 +58,13 @@ import {
 	getIntercomSourceBadgeClass,
 	getIntercomSourceLabel,
 	parseIntercomLogTimestamp,
-} from "~/utils/accessSecurity"
+} from "~/utils/intercom"
 import { formatDateTime } from "~/utils/dateUtils"
-import type { AccessSecurityIntercomLog, AccessSecuritySiteLocation } from "~/types/accessSecurity"
+import type { IntercomLog, IntercomSiteLocation } from "~/types/intercom"
 
 const props = defineProps<{
-	events: AccessSecurityIntercomLog[]
-	locations: AccessSecuritySiteLocation[]
+	events: IntercomLog[]
+	locations: IntercomSiteLocation[]
 }>()
 
 const rows = computed(() =>

@@ -8,7 +8,7 @@ import {
 } from "./helpers/selectors"
 
 /**
- * 多媒體：RO 分頁／看板＋橫幅寫入（API 還原）。
+ * 多媒體：RO 分頁＋橫幅寫入（API 還原）；看板為 Central 內頁 `/multimedia/wall`。
  */
 test.describe("多媒體資訊", () => {
 	test("/multimedia：分頁、基本設定、公告列表、看板連結", async ({ page }) => {
@@ -21,12 +21,13 @@ test.describe("多媒體資訊", () => {
 		await expect(page.getByRole("heading", { name: "多媒體資訊", level: 1 })).toBeVisible({
 			timeout: 30_000,
 		})
-		await expect(page.getByRole("link", { name: "開啟資訊牆看板" })).toBeVisible()
+		await expect(page.getByRole("link", { name: "資訊牆看板" })).toBeVisible()
 		await expect(page.getByRole("button", { name: "儲存" })).toBeVisible()
 
 		const tablist = page.getByRole("tablist", { name: "多媒體資訊分頁" }).first()
 		await expect(tablist.getByRole("tab", { name: "基本設定" })).toBeVisible()
 		await expect(tablist.getByRole("tab", { name: "公告列表" })).toBeVisible()
+		await expect(tablist.getByRole("tab", { name: "授權電腦" })).toBeVisible()
 		await expect(page.getByRole("heading", { name: "基本設定" })).toBeVisible({
 			timeout: 15_000,
 		})
@@ -42,7 +43,16 @@ test.describe("多媒體資訊", () => {
 		await expect(page.getByRole("heading", { name: "社區公告" })).toBeVisible({
 			timeout: 15_000,
 		})
-		await expect(page.getByRole("heading", { name: "今日社區排程" })).toBeVisible()
+		await expect(page.getByRole("heading", { name: "今日社區排程" }).first()).toBeVisible()
+
+		const seatsTab = page.locator("#multimedia-tab-seats")
+		await expect(async () => {
+			await seatsTab.click({ force: true })
+			await expect(seatsTab).toHaveAttribute("aria-selected", "true")
+		}).toPass({ timeout: 10_000 })
+		await expect(page.getByRole("heading", { name: "授權電腦", level: 2 })).toBeVisible({
+			timeout: 15_000,
+		})
 
 		await guards.assertClean()
 	})
@@ -84,22 +94,6 @@ test.describe("多媒體資訊", () => {
 				.putMultimediaSettings({ bannerMarqueeText: original.bannerMarqueeText ?? "" })
 				.catch(() => undefined)
 		}
-
-		await guards.assertClean()
-	})
-
-	test("/multimedia/dashboard：社區公告、環境偵測、今日排程", async ({ page }) => {
-		const guards = attachPageGuards(page)
-
-		await page.goto("/multimedia/dashboard", { waitUntil: "domcontentloaded" })
-		await expectStayAuthenticated(page)
-		await suppressAlertToasts(page)
-		await expect(page).toHaveURL(/\/multimedia\/dashboard/)
-		await expect(page.getByRole("heading", { name: "社區公告" })).toBeVisible({
-			timeout: 30_000,
-		})
-		await expect(page.getByText("社區環境偵測")).toBeVisible()
-		await expect(page.getByRole("heading", { name: "今日社區排程" })).toBeVisible()
 
 		await guards.assertClean()
 	})

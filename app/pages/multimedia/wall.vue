@@ -1,5 +1,19 @@
 <template>
 	<div class="relative min-h-screen flex flex-col justify-center items-center pt-24">
+		<div
+			v-if="gateError"
+			class="absolute inset-0 z-20 flex items-center justify-center bg-black/50 px-6"
+			role="alert"
+			aria-live="polite"
+		>
+			<div
+				class="max-w-xl rounded-2xl border-2 border-[#323232]/50 bg-[#f0f0e6] px-10 py-12 text-center"
+			>
+				<div class="text-3xl font-semibold tracking-[4px]">無法顯示資訊牆</div>
+				<div class="mt-4 text-xl">{{ gateError }}</div>
+			</div>
+		</div>
+
 		<div class="flex flex-col gap-4 2xl:gap-8 min-w-[100vw]">
 			<section class="grid grid-cols-12 gap-4 px-6 2xl:px-10">
 				<div
@@ -64,14 +78,12 @@
 						muted
 						loop
 						playsinline
-						controls
 						aria-label="右側影片"
 					/>
-					<NuxtImg
+					<img
 						v-else-if="settings.heroImageUrl"
 						:src="heroUrl"
 						alt="右側圖片"
-						sizes="(min-width: 1280px) 40vw, 100vw"
 						class="min-h-[400px] h-full aspect-[16/9] object-cover"
 					/>
 					<div v-else class="flex min-h-[400px] items-center justify-center">尚未設定圖片</div>
@@ -156,12 +168,13 @@
 import EnvironmentMetricCard from "~/components/multimedia/EnvironmentMetricCard.vue"
 import { useMultimediaWallDashboard } from "~/composables/systems/multimedia/useMultimediaWallDashboard"
 
-definePageMeta({ layout: "dashboard" })
+definePageMeta({ layout: "wall" })
 
 const {
 	settings,
 	heroUrl,
 	isHeroVideo,
+	gateError,
 	pagedAnnouncements,
 	announcementPageIndex,
 	announcementTotalPages,

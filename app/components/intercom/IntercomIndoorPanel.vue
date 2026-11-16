@@ -37,7 +37,7 @@
 						<div
 							class="mx-auto aspect-[300/188] w-full max-h-[150px] overflow-hidden rounded-lg 2xl:max-h-[170px]"
 						>
-							<AccessIntercomIndoorSvg :status="resolveIndoorStatus(loc.id)" />
+							<IntercomIndoorSvg :status="resolveIndoorStatus(loc.id)" />
 						</div>
 						<h4
 							class="line-clamp-2 shrink-0 text-center text-base font-semibold text-white 2xl:text-lg"
@@ -98,16 +98,16 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import type { AccessSecuritySiteLocation } from "~/types/accessSecurity"
-import { groupAccessSecurityLocationsByFloor } from "~/utils/accessSecurity"
-import AccessIntercomIndoorSvg from "~/components/access-security/AccessIntercomIndoorSvg.vue"
+import type { IntercomSiteLocation } from "~/types/intercom"
+import { groupIntercomLocationsByFloor } from "~/utils/intercom"
+import IntercomIndoorSvg from "~/components/intercom/IntercomIndoorSvg.vue"
 import Pagination from "~/components/common/Pagination.vue"
 
 const PAGE_SIZE = 4
 
 const props = withDefaults(
 	defineProps<{
-		locations: AccessSecuritySiteLocation[]
+		locations: IntercomSiteLocation[]
 		ringingLocationId?: number | null
 		talkingLocationId?: number | null
 		talkPhase?: "idle" | "ringing" | "talking"
@@ -142,7 +142,7 @@ const resolveIndoorStatus = (locationId: number) => {
 const selectedFloor = ref("")
 const pageOffset = ref(0)
 
-const groupedFloors = computed(() => groupAccessSecurityLocationsByFloor(props.locations))
+const groupedFloors = computed(() => groupIntercomLocationsByFloor(props.locations))
 
 const floorLocations = computed(
 	() =>

@@ -74,17 +74,17 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
-import type { AccessSecurityMainStation, AccessSecuritySiteZone } from "~/types/accessSecurity"
+import type { IntercomMainStation, IntercomSiteZone } from "~/types/intercom"
 import {
-	buildAccessSecurityOverviewGrid,
-	formatAccessSecurityArmingLabel,
-	resolveAccessSecurityZoneStation,
-	type AccessSecurityOverviewGridCell,
-} from "~/utils/accessSecurity"
+	buildIntercomOverviewGrid,
+	formatIntercomArmingLabel,
+	resolveIntercomZoneStation,
+	type IntercomOverviewGridCell,
+} from "~/utils/intercom"
 
 const props = defineProps<{
-	zone: AccessSecuritySiteZone
-	stations?: AccessSecurityMainStation[]
+	zone: IntercomSiteZone
+	stations?: IntercomMainStation[]
 }>()
 
 const emit = defineEmits<{
@@ -92,15 +92,15 @@ const emit = defineEmits<{
 }>()
 
 const station = computed(() =>
-	resolveAccessSecurityZoneStation(props.zone, props.stations || [])
+	resolveIntercomZoneStation(props.zone, props.stations || [])
 )
-const displayUnits = computed(() => buildAccessSecurityOverviewGrid(props.zone.locations || []))
+const displayUnits = computed(() => buildIntercomOverviewGrid(props.zone.locations || []))
 const unitCount = computed(() => props.zone.locations?.length || 0)
 const indoorCount = computed(
 	() => (props.zone.locations || []).filter((loc) => loc.indoorDeviceId).length
 )
 const stationTitle = computed(() => station.value?.name?.trim() || "尚未綁定主機")
-const armingLabel = computed(() => formatAccessSecurityArmingLabel(station.value))
+const armingLabel = computed(() => formatIntercomArmingLabel(station.value))
 const statRows = computed(() => [
 	{ label: "戶數", value: unitCount.value, warn: false, compact: false },
 	{
@@ -121,10 +121,10 @@ const cardAriaLabel = computed(
 		`選擇 ${props.zone.name || "未分類"}，${stationTitle.value}，${unitCount.value} 戶 ${indoorCount.value} 台室內機，主機${armingLabel.value}`
 )
 
-const isActiveCell = (cell: AccessSecurityOverviewGridCell): boolean =>
+const isActiveCell = (cell: IntercomOverviewGridCell): boolean =>
 	cell?.kind === "overflow" || (cell?.kind === "unit" && Boolean(cell.location.indoorDeviceId))
 
-const cellTitle = (cell: AccessSecurityOverviewGridCell): string => {
+const cellTitle = (cell: IntercomOverviewGridCell): string => {
 	if (cell?.kind === "overflow") return `尚有 ${cell.count} 戶`
 	if (cell?.kind !== "unit") return ""
 	return `${cell.location.displayName || cell.location.name}　${cell.location.indoorDeviceName || "未綁定"}`

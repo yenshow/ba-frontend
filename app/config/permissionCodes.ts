@@ -104,6 +104,7 @@ export const PERM = {
 		locationUpdate: "system.lighting.location.update",
 		locationDelete: "system.lighting.location.delete",
 		deviceControl: "system.lighting.device.control",
+		scheduleEdit: "system.lighting.schedule.edit",
 	},
 	hvac: {
 		module: "system.hvac",
@@ -111,6 +112,7 @@ export const PERM = {
 		locationUpdate: "system.hvac.location.update",
 		locationDelete: "system.hvac.location.delete",
 		deviceControl: "system.hvac.device.control",
+		scheduleEdit: "system.hvac.schedule.edit",
 	},
 	power: {
 		module: "system.power",
@@ -153,12 +155,19 @@ export const PERM = {
 		locationUpdate: "system.smoke_alarm.location.update",
 		locationDelete: "system.smoke_alarm.location.delete",
 	},
-	accessSecurity: {
-		module: "system.access_security",
-		locationCreate: "system.access_security.location.create",
-		locationUpdate: "system.access_security.location.update",
-		locationDelete: "system.access_security.location.delete",
-		ring: "system.access_security.ring",
+	intercom: {
+		module: "system.intercom",
+		locationCreate: "system.intercom.location.create",
+		locationUpdate: "system.intercom.location.update",
+		locationDelete: "system.intercom.location.delete",
+		ring: "system.intercom.ring",
+	},
+	security: {
+		module: "system.security",
+		locationCreate: "system.security.location.create",
+		locationUpdate: "system.security.location.update",
+		locationDelete: "system.security.location.delete",
+		scheduleEdit: "system.security.schedule.edit",
 	},
 	multimedia: {
 		module: "system.multimedia",
@@ -181,5 +190,6 @@ export const LOCATION_DELETE_BY_SYSTEM_TYPE: Record<string, string> = {
 	emergency_rescue: PERM.emergencyRescue.locationDelete,
 	smoke_alarm: PERM.smokeAlarm.locationDelete,
 	elevator: PERM.elevator.locationDelete,
-	access_security: PERM.accessSecurity.locationDelete,
+	intercom: PERM.intercom.locationDelete,
+	security: PERM.security.locationDelete,
 }

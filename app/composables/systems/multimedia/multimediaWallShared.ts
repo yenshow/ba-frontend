@@ -9,8 +9,7 @@ import { formatClockDisplay } from "~/utils/dateUtils"
 export const WALL_SETTINGS_STATE_KEY = "multimedia-wall-settings"
 export const WALL_ENV_SNAPSHOT_STATE_KEY = "multimedia-wall-env-snapshot"
 export const WALL_NOW_STATE_KEY = "multimedia-wall-now"
-export const WALL_ALERT_RULES_STATE_KEY = "multimedia-wall-alert-rules"
-export const WALL_RULES_LOADED_STATE_KEY = "multimedia-wall-rules-loaded"
+export const WALL_GATE_ERROR_STATE_KEY = "multimedia-wall-gate-error"
 
 export const DEFAULT_ANNOUNCEMENTS_PER_PAGE = 5
 export const DEFAULT_SCHEDULES_PER_PAGE = 4
@@ -32,7 +31,7 @@ export const isEnvironmentMetricKey = (k: string): k is EnvironmentMetricKey =>
 	Object.prototype.hasOwnProperty.call(ENV_METRIC_META, k)
 
 export const normalizeEnvSnapshotResponse = (
-	res: unknown
+	res: unknown,
 ): MultimediaEnvReadingsSnapshot | null => {
 	if (!res || typeof res !== "object") return null
 	const r = res as Record<string, unknown>
@@ -71,7 +70,6 @@ export const clampWallInt = (v: unknown, min: number, max: number, fallback: num
 	return Math.max(min, Math.min(max, Math.floor(n)))
 }
 
-/** layout 用：只讀共用狀態，不啟動輪詢／時鐘 */
 export const useMultimediaWallShell = () => {
 	const { resolveUrl } = useImageCenter()
 	const settings = useState(WALL_SETTINGS_STATE_KEY, createDefaultWallSettings)
@@ -88,7 +86,7 @@ export const useMultimediaWallShell = () => {
 export const createWallPager = <T>(
 	items: ComputedRef<T[]>,
 	perPage: ComputedRef<number>,
-	intervalMs: ComputedRef<number>
+	intervalMs: ComputedRef<number>,
 ) => {
 	const pageIndex = ref(0)
 	const totalPages = computed(() => {

@@ -11,63 +11,72 @@
 						</span>
 					</div>
 					<Transition name="fade-in">
-						<PermissionActionButton
+						<div
 							v-show="!isInitialLoading"
-							:allowed="canManageZones ?? false"
-							aria-label="樓層管理"
-							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
-							@click="handleOpenZoneDialog"
+							class="flex flex-col items-center gap-4"
 						>
-							樓層管理
-						</PermissionActionButton>
-					</Transition>
-					<div class="relative">
-						<Transition name="fade-in">
 							<PermissionActionButton
-								v-show="!isInitialLoading"
-								:allowed="canWrite"
-								aria-label="編輯定位"
-								:class="[
-									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg',
-									isEditMode
-										? 'border-2 border-white bg-white/10'
-										: 'border-2 border-white/30 bg-transparent',
-								]"
-								@click="handleToggleEditMode"
+								:allowed="canManageZones ?? false"
+								aria-label="樓層管理"
+								class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
+								@click="handleOpenZoneDialog"
 							>
-								{{ isEditMode ? "完成編輯" : "編輯定位" }}
+								樓層管理
 							</PermissionActionButton>
-						</Transition>
-						<Transition name="dropdown">
-							<CategoryList
-								v-if="isEditMode"
-								:categories="
-									allZoneLocations.map((location, index) => ({
-										id: getLocationUiKey({
-											zone: selectedZoneData || ({} as LightingZone),
-											location,
-											locationIndex: index,
-										}),
-										name: location.name,
-										zoneId: selectedZone || '',
-										location: location.location,
-										modbus: location.modbus,
-									}))
-								"
-								:editing="isEditMode"
-								:selected-category-id="selectedCategory"
-								@select="handleSelectCategory"
-								@dragstart="handleCategoryListDragStart"
-								@dragend="handleDragEnd"
-							/>
-						</Transition>
-					</div>
+							<div class="relative">
+								<PermissionActionButton
+									:allowed="canWrite"
+									aria-label="編輯定位"
+									:class="[
+										'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg',
+										isEditMode
+											? 'border-2 border-white bg-white/10'
+											: 'border-2 border-white/30 bg-transparent',
+									]"
+									@click="handleToggleEditMode"
+								>
+									{{ isEditMode ? "完成編輯" : "編輯定位" }}
+								</PermissionActionButton>
+								<Transition name="dropdown">
+									<CategoryList
+										v-if="isEditMode"
+										:categories="
+											allZoneLocations.map((location, index) => ({
+												id: getLocationUiKey({
+													zone: selectedZoneData || ({} as LightingZone),
+													location,
+													locationIndex: index,
+												}),
+												name: location.name,
+												zoneId: selectedZone || '',
+												location: location.location,
+												modbus: location.modbus,
+											}))
+										"
+										:editing="isEditMode"
+										:selected-category-id="selectedCategory"
+										@select="handleSelectCategory"
+										@dragstart="handleCategoryListDragStart"
+										@dragend="handleDragEnd"
+									/>
+								</Transition>
+							</div>
+							<PermissionActionButton
+								:allowed="canManageSchedules ?? false"
+								aria-label="時間排程"
+								class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
+								@click="emit('open-schedule-management')"
+							>
+								時間排程
+							</PermissionActionButton>
+						</div>
+					</Transition>
 				</div>
 			</div>
 
 			<div
 				ref="zonePlanRef"
-				class="map-location-dots relative h-[600px] w-full p-4 2xl:h-[780px]"
+				class="map-location-dots relative h-[600px] min-w-0 flex-1 p-4 2xl:h-[780px]"
 				:class="{ 'cursor-crosshair': isEditMode && !draggingCategoryId }"
 				@drop="handleDrop"
 				@dragover.prevent
@@ -138,6 +147,7 @@ import PermissionActionButton from "~/components/common/PermissionActionButton.v
 import type { LightingLocation, LightingZone } from "~/types/lighting"
 import type { MapDotStatus, SystemUiStatus } from "~/utils/monitoringStatus"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
+import { percentPositionFromClientPoint } from "~/utils/mapPosition"
 
 interface Props {
 	selectedZoneName: string
@@ -145,6 +155,8 @@ interface Props {
 	canWrite: boolean
 	/** 樓層／地點管理（僅 admin） */
 	canManageZones?: boolean
+	/** 時間排程編輯（schedule.edit 或 location.update） */
+	canManageSchedules?: boolean
 	isEditMode: boolean
 	selectedZone: string
 	selectedZoneData: LightingZone | undefined
@@ -161,6 +173,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
 	"open-zone-management": []
+	"open-schedule-management": []
 	"toggle-edit-mode": []
 	"select-category": [locationId: string]
 	"save-location-position": [payload: { locationId: string; x: number; y: number }]
@@ -270,10 +283,11 @@ const handleDrop = (event: DragEvent) => {
 	const locationId = event.dataTransfer?.getData("locationId")
 	if (!locationId) return
 
-	const rect = zonePlanRef.value.getBoundingClientRect()
-	const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))
-	const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))
-
+	const { x, y } = percentPositionFromClientPoint(
+		zonePlanRef.value,
+		event.clientX,
+		event.clientY
+	)
 	emit("save-location-position", { locationId, x, y })
 	draggingCategoryId.value = ""
 }

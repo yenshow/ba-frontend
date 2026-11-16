@@ -1,11 +1,10 @@
 <template>
 	<div class="min-h-screen relative">
 		<div class="absolute inset-0">
-			<NuxtImg
+			<img
 				v-if="settings.backgroundImageUrl"
 				:src="bgUrl"
 				alt="背景"
-				sizes="100vw"
 				class="h-full w-full object-cover"
 			/>
 		</div>
@@ -17,11 +16,10 @@
 			</div>
 
 			<div class="col-span-1 flex items-center justify-center pt-6">
-				<NuxtImg
+				<img
 					v-if="settings.projectImageUrl"
 					:src="projectImageUrl"
 					alt="專案圖片"
-					sizes="128px"
 					class="h-28 object-contain 2xl:h-32"
 				/>
 			</div>

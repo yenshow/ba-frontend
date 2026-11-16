@@ -1,5 +1,5 @@
 import type { Alert } from "~/types/alert"
-import type { Device } from "~/types/device"
+import type { Device, IoModuleHealth } from "~/types/device"
 
 /**
  * WebSocket 連接狀態
@@ -58,13 +58,18 @@ export interface MonitoringDeviceStatusEvent {
 	sourceId: number
 	deviceId?: number | null
 	status: "online" | "offline"
+	modules?: IoModuleHealth[]
 	timestamp: string
 }
 
 export interface MonitoringDeviceStatusBatchEvent {
 	system: string
 	status: "online" | "offline"
-	updates: Array<{ sourceId: number; deviceId?: number | null }>
+	updates: Array<{
+		sourceId: number
+		deviceId?: number | null
+		modules?: IoModuleHealth[]
+	}>
 	timestamp: string
 }
 

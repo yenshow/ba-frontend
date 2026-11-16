@@ -218,6 +218,78 @@
 										</div>
 									</label>
 								</template>
+								<template v-else>
+									<div class="flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
+										<div class="flex items-center justify-between gap-2">
+											<span class="font-medium text-white/90">DI/DO 主／副機</span>
+											<button
+												type="button"
+												class="flex h-8 min-w-8 items-center justify-center rounded-lg border border-dashed border-white/25 bg-white/5 px-2 text-sm text-white/80 transition-colors hover:border-cyan-400/50 hover:bg-white/10 hover:text-white 2xl:h-9 2xl:min-w-9 2xl:text-base"
+												aria-label="新增副機"
+												@click="handleAddSlaveIoModule"
+											>
+												+
+											</button>
+										</div>
+										<p class="text-xs text-white/50 2xl:text-sm">
+											平台只連主機 IP；副機實體串接。通道 1-based（存檔為 0-based
+											位址）；DI／DO 類型在各地點點位設定，不在此區分。
+										</p>
+										<div
+											v-for="(row, idx) in ioModuleRows"
+											:key="`${row.role}-${row.moduleId}`"
+											class="rounded-lg border border-white/10 bg-white/5 p-3"
+										>
+											<div class="mb-2 flex items-center justify-between gap-2">
+												<span class="text-white/90">
+													{{ row.role === "master" ? "主機" : `副機 ID ${row.moduleId}` }}
+												</span>
+												<button
+													v-if="row.role === 'slave'"
+													type="button"
+													class="text-xs text-red-300 hover:text-red-200"
+													:aria-label="`移除副機 ${row.moduleId}`"
+													@click="handleRemoveSlaveIoModule(idx)"
+												>
+													移除
+												</button>
+											</div>
+											<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+												<label class="flex flex-col gap-1">
+													<span class="text-xs text-white/60">序號</span>
+													<input
+														v-model="row.serial"
+														type="text"
+														class="form-input"
+														placeholder="選填"
+														:aria-label="`模組 ${row.moduleId} 序號`"
+													/>
+												</label>
+												<label class="flex flex-col gap-1">
+													<span class="text-xs text-white/60">起點（通道）</span>
+													<input
+														v-model.number="row.channelStart"
+														type="number"
+														min="1"
+														class="form-input"
+														:disabled="row.role === 'master'"
+														:aria-label="`模組 ${row.moduleId} 起點通道`"
+													/>
+												</label>
+												<label class="flex flex-col gap-1">
+													<span class="text-xs text-white/60">迄點（通道）</span>
+													<input
+														v-model.number="row.channelEnd"
+														type="number"
+														min="1"
+														class="form-input"
+														:aria-label="`模組 ${row.moduleId} 迄點通道`"
+													/>
+												</label>
+											</div>
+										</div>
+									</div>
+								</template>
 							</template>
 
 							<template v-if="deviceTypeCode === 'camera' && !isNvrCameraCategory">
@@ -846,6 +918,14 @@ import {
 	ENERGY_USAGE_SYSTEM_OPTIONS,
 	type EnergyUsageSystemKey,
 } from "~/constants/energyUsageSystems"
+import {
+	defaultMasterIoModule,
+	formRowsToIoModules,
+	ioModulesToFormRows,
+	nextSlaveFormRow,
+	validateIoModuleFormRows,
+	type IoModuleFormRow,
+} from "~/utils/modbusIoModules"
 
 interface Props {
 	modelValue: boolean
@@ -895,6 +975,17 @@ const controllerConfig = reactive<ControllerDeviceConfig>({
 	password: "",
 })
 const showControllerPassword = ref(false)
+const ioModuleRows = ref<IoModuleFormRow[]>(ioModulesToFormRows([defaultMasterIoModule()]))
+
+const handleAddSlaveIoModule = () => {
+	ioModuleRows.value = [...ioModuleRows.value, nextSlaveFormRow(ioModuleRows.value)]
+}
+
+const handleRemoveSlaveIoModule = (index: number) => {
+	const row = ioModuleRows.value[index]
+	if (!row || row.role === "master") return
+	ioModuleRows.value = ioModuleRows.value.filter((_, i) => i !== index)
+}
 
 const cameraConfig = reactive<CameraDeviceConfig>({
 	type: "camera",
@@ -1181,6 +1272,7 @@ const resetForm = () => {
 	controllerConfig.username = "admin"
 	controllerConfig.password = ""
 	showControllerPassword.value = false
+	ioModuleRows.value = ioModulesToFormRows([defaultMasterIoModule()])
 
 	cameraConfig.rtsp_url = ""
 
@@ -1377,9 +1469,14 @@ const loadConfigFromDevice = (device: Device) => {
 	if (!device.config) return
 
 	switch (device.config.type) {
-		case "controller":
+		case "controller": {
 			Object.assign(controllerConfig, device.config)
+			const cfg = device.config as ControllerDeviceConfig
+			ioModuleRows.value = ioModulesToFormRows(
+				cfg.protocol === "hcnet_sdk" ? null : cfg.ioModules,
+			)
 			break
+		}
 		case "camera": {
 			Object.assign(cameraConfig, device.config)
 			const camCfg = device.config as CameraDeviceConfig
@@ -1486,6 +1583,7 @@ const getCurrentConfig = (): DeviceConfig => {
 				host: controllerConfig.host,
 				port: controllerConfig.port,
 				...(controllerConfig.unitId != null && { unitId: controllerConfig.unitId }),
+				ioModules: formRowsToIoModules(ioModuleRows.value),
 			}
 		}
 		case "camera": {
@@ -1604,6 +1702,14 @@ const handleSubmit = () => {
 	if (validationError) {
 		localErrorMessage.value = validationError
 		return
+	}
+
+	if (props.deviceTypeCode === "controller" && !isHcnetSdkController.value) {
+		const ioErr = validateIoModuleFormRows(ioModuleRows.value)
+		if (ioErr) {
+			localErrorMessage.value = ioErr
+			return
+		}
 	}
 
 	const config = getCurrentConfig()

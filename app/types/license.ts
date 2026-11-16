@@ -16,7 +16,8 @@ export type FeatureKey =
 	| "surveillance"
 	| "vehicle_access"
 	| "multimedia"
-	| "access_security"
+	| "intercom"
+	| "security"
 
 export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"people_counting",
@@ -35,7 +36,8 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"surveillance",
 	"vehicle_access",
 	"multimedia",
-	"access_security",
+	"intercom",
+	"security",
 ]
 
 /** 授權頁／配額列表顯示名（與 LICENSE_FEATURE_KEYS 對齊） */
@@ -56,7 +58,8 @@ export const FEATURE_KEY_LABELS: Record<FeatureKey, string> = {
 	surveillance: "影像監控",
 	vehicle_access: "車輛進出",
 	multimedia: "多媒體資訊",
-	access_security: "門禁保全",
+	intercom: "對講系統",
+	security: "保全系統",
 }
 
 export const getFeatureKeyLabel = (key: FeatureKey | string): string =>
@@ -80,8 +83,9 @@ export const FEATURE_QUOTA_KIND: Record<FeatureKey, FeatureQuotaKind> = {
 	environment: "points",
 	surveillance: "devices",
 	vehicle_access: "devices",
-	multimedia: "none",
-	access_security: "devices",
+	multimedia: "devices",
+	intercom: "devices",
+	security: "points",
 }
 
 export const getFeatureQuotaKind = (key: FeatureKey | string): FeatureQuotaKind =>

@@ -116,6 +116,34 @@ export function formatDateInput(date: Date): string {
 	return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}`;
 }
 
+export type ClockDisplayParts = {
+	date: string
+	weekday: string
+	period: string
+	time: string
+}
+
+/** 資訊牆時鐘顯示（本地） */
+export function formatClockDisplay(date: Date): ClockDisplayParts {
+	const padZero = (n: number): string => String(n).padStart(2, "0")
+	const year = date.getFullYear()
+	const month = padZero(date.getMonth() + 1)
+	const day = padZero(date.getDate())
+	const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
+	const weekday = weekdays[date.getDay()] ?? ""
+	const hours = date.getHours()
+	const minutes = padZero(date.getMinutes())
+	const seconds = padZero(date.getSeconds())
+	const period = hours < 12 ? "上午" : "下午"
+	const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
+	return {
+		date: `${year}/${month}/${day}`,
+		weekday,
+		period,
+		time: `${displayHours}:${minutes}:${seconds}`,
+	}
+}
+
 /** YYYY-MM-DD → 本地日曆 00:00（勿接 `T00:00:00Z`，台灣會偏成當天 08:00） */
 export function parseLocalDateInput(ymd: string): Date | null {
 	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || "").trim());
@@ -174,37 +202,6 @@ export function isoRangeToInclusiveYmd(
 export function formatInclusiveLocalRangeDisplay(startIso: string, endIso: string): string {
 	const { startDate, endDate } = isoRangeToInclusiveYmd(startIso, endIso);
 	return `${startDate.replace(/-/g, "/")} - ${endDate.replace(/-/g, "/")}`;
-}
-
-export type ClockDisplayParts = {
-	date: string;
-	weekday: string;
-	period: string;
-	time: string;
-};
-
-/** 多媒體牆／儀表板標頭用時鐘顯示（12 小時制，含星期與上午／下午） */
-export function formatClockDisplay(date: Date): ClockDisplayParts {
-	const padZero = (n: number): string => String(n).padStart(2, "0");
-	const year = date.getFullYear();
-	const month = padZero(date.getMonth() + 1);
-	const day = padZero(date.getDate());
-
-	const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-	const weekday = weekdays[date.getDay()] ?? "";
-
-	const hours = date.getHours();
-	const minutes = padZero(date.getMinutes());
-	const seconds = padZero(date.getSeconds());
-	const period = hours < 12 ? "上午" : "下午";
-	const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-
-	return {
-		date: `${year}/${month}/${day}`,
-		weekday,
-		period,
-		time: `${padZero(displayHours)}:${minutes}:${seconds}`,
-	};
 }
 
 /**

@@ -16,6 +16,7 @@ export type AccessLocationType =
 	| "fire"
 	| "emergency_rescue"
 	| "smoke_alarm"
+	| "security"
 
 export type ZoneRef = { id: string; name: string }
 

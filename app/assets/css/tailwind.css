@@ -595,18 +595,19 @@ html:not(.dark) .select-filter option {
    - alarm：警報（紅，閃爍較強）
    照明等僅兩態者：normal + warning 即可。
    ======================================== */
+/* wrapper 置中於 left/top%：本身需有尺寸，拖曳熱點才不會偏（勿只在內層 translate） */
 .map-location-dots .category-dot-wrapper,
 .map-location-dots .location-dot-wrapper {
 	position: absolute;
 	z-index: 10;
+	transform: translate(-50%, -50%);
 }
 .map-location-dots .category-dot,
 .map-location-dots .location-dot {
-	position: absolute;
+	position: relative;
 	width: 48px;
 	height: 48px;
 	border-radius: 9999px;
-	transform: translate(-50%, -50%);
 	border: 2px solid transparent;
 	display: flex;
 	align-items: center;

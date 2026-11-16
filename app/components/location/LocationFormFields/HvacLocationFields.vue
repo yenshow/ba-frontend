@@ -1,23 +1,23 @@
 <template>
 	<div class="flex w-full min-w-0 flex-col gap-3">
-		<!-- 上排：點位名稱、控制器、類型、地址（單一設備） -->
-		<div class="flex min-w-0 flex-wrap items-end gap-2">
-			<label
-				class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-			>
-				<span>點位名稱<span class="required-mark">*</span></span>
-				<input
-					v-model="localLocation.name"
-					type="text"
-					required
-					class="form-input-small"
-					placeholder="例如：空調點位"
-					@input="emitBuilt"
-				/>
-			</label>
+		<!-- 點位名稱單獨；控制器／類型／地址並列（對齊保全） -->
+		<label
+			class="flex w-full min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+		>
+			<span>點位名稱<span class="required-mark">*</span></span>
+			<input
+				v-model="localLocation.name"
+				type="text"
+				required
+				class="form-input-small"
+				placeholder="例如：空調點位"
+				@input="emitBuilt"
+			/>
+		</label>
 
+		<div class="flex w-full min-w-0 flex-wrap items-end gap-3">
 			<label
-				class="flex min-w-[8rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+				class="flex min-w-[12rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 			>
 				<span>控制器</span>
 				<FilterDropdown
@@ -30,7 +30,7 @@
 
 			<template v-if="hasController && localLocation.modbus?.points?.[0]">
 				<label
-					class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+					class="flex w-[7rem] shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 				>
 					<span>類型<span class="required-mark">*</span></span>
 					<FilterDropdown
@@ -42,7 +42,7 @@
 				</label>
 
 				<label
-					class="flex min-w-[5rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[8rem]"
+					class="flex w-[9rem] shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 				>
 					<span>地址<span class="required-mark">*</span></span>
 					<div class="relative w-full">

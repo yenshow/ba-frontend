@@ -11,6 +11,7 @@ export const LEGACY_ROUTE_REDIRECTS: Record<string, string> = {
 	"/infrastructure/drainage": "/utilities/drainage",
 	"/infrastructure/air-circulation": "/utilities/air-circulation",
 	"/infrastructure/fire": "/security/fire",
+	"/security/access-control": "/security/intercom",
 }
 
 export const toLegacyRouteRedirectRules = () =>

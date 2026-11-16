@@ -41,7 +41,7 @@ const LEGACY_VIEW_CATEGORY_LABELS: Record<string, string> = {
 
 export const getLocationGroupMode = (systemType: SystemType): LocationGroupMode => {
 	if (VIEW_CATEGORY_SYSTEMS.includes(systemType)) return "viewCategory"
-	if (systemType === "access_security") return "floor"
+	if (systemType === "intercom") return "floor"
 	return "none"
 }
 

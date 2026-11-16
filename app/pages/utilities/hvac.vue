@@ -12,6 +12,7 @@
 				:is-initial-loading="isInitialLoading"
 				:can-write="canUpdateLocation"
 				:can-manage-zones="canManageLocation"
+				:can-manage-schedules="canManageSchedules"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -23,6 +24,7 @@
 				:tooltip-title-by-location-id="tooltipTitleByLocationId"
 				:get-location-alert-flash="getLocationAlertFlash"
 				@open-zone-management="handleOpenZoneDialog"
+				@open-schedule-management="showScheduleDialog = true"
 				@toggle-edit-mode="handleToggleEditMode"
 				@select-category="handleSelectCategory"
 				@save-location-position="handleSaveLocationPositionFromPanel"
@@ -63,6 +65,11 @@
 		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
+	<HvacScheduleDialog
+		v-model="showScheduleDialog"
+		:zones="hvacZones"
+		:can-edit="canManageSchedules"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -70,6 +77,7 @@ import { TOAST } from "~/config/toastCatalog"
 import { onMounted, watch } from "vue"
 import HvacZonePlanPanel from "~/components/hvac/HvacZonePlanPanel.vue"
 import HvacStatusCenter from "~/components/hvac/HvacStatusCenter.vue"
+import HvacScheduleDialog from "~/components/hvac/HvacScheduleDialog.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import SnapshotSyncHealthBadge from "~/components/common/SnapshotSyncHealthBadge.vue"
 import type { HvacZone, HvacLocation } from "~/types/hvac"
@@ -90,6 +98,7 @@ import { useInfraZoneDeepLink } from "~/composables/monitoring/useInfraZoneDeepL
 definePageMeta({ layout: "default" })
 
 import { PERM } from "~/config/permissionCodes"
+import { useAuth } from "~/composables/core/useAuth"
 const {
 	canControlDevice,
 	canManageLocation,
@@ -97,6 +106,12 @@ const {
 	canUpdateLocation,
 	canDeleteLocation,
 } = useLocationModuleRbac(PERM.hvac)
+const { hasPermission } = useAuth()
+const canManageSchedules = computed(
+	() =>
+		hasPermission(PERM.hvac.scheduleEdit) ||
+		hasPermission(PERM.hvac.locationUpdate)
+)
 const hvacApi = useHvacApi()
 const { handleError } = useErrorHandler()
 const toast = useToast()
@@ -112,6 +127,7 @@ const selectedZone = ref<string>("")
 const selectedCategory = ref("")
 const isEditMode = ref(false)
 const showZoneManagementDialog = ref(false)
+const showScheduleDialog = ref(false)
 
 const zonesById = computed(
 	() => new Map(hvacZones.value.map((zone) => [zone.id || zone.name, zone]))

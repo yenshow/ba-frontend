@@ -210,7 +210,7 @@ export function useLocationValidationPipeline() {
 				case "emergency_rescue": {
 					break
 				}
-				case "access_security": {
+				case "intercom": {
 					const asLoc = loc as {
 						name?: string
 						floor?: string
@@ -225,6 +225,37 @@ export function useLocationValidationPipeline() {
 					const indoorId = Number(asLoc?.indoorDeviceId ?? asLoc?.deviceId)
 					if (!Number.isFinite(indoorId) || indoorId <= 0) {
 						errors.push(`戶別「${locLabel}」：必須綁定室內機`)
+					}
+					break
+				}
+				case "security": {
+					const sec = loc as {
+						name?: string
+						dataSource?: string
+						deviceId?: number
+						statusPoints?: Record<string, unknown>
+						accessDeviceIds?: number[]
+					}
+					const locLabel = sec?.name || `第 ${i + 1} 筆`
+					const source = String(sec?.dataSource || "").trim()
+					const usesDi = !source || source === "di" || source === "both"
+					const usesAccess =
+						!source || source === "access_control" || source === "both"
+					const deviceId = Number(sec?.deviceId)
+					const hasDi =
+						(Number.isFinite(deviceId) && deviceId > 0) ||
+						(sec?.statusPoints && Object.keys(sec.statusPoints).length > 0)
+					const accessIds = Array.isArray(sec?.accessDeviceIds)
+						? sec.accessDeviceIds.map(Number).filter((n) => n > 0)
+						: []
+					if (usesDi && !hasDi) {
+						errors.push(`點位「${locLabel}」：DI 資料來源須選擇控制器與位址`)
+					}
+					if (usesAccess && accessIds.length === 0) {
+						errors.push(`點位「${locLabel}」：門禁／讀卡資料來源須至少選擇一台設備`)
+					}
+					if (!hasDi && accessIds.length === 0) {
+						errors.push(`點位「${locLabel}」：須綁定 DI（控制器）或至少一台門禁機／讀卡機`)
 					}
 					break
 				}

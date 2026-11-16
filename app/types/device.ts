@@ -128,6 +128,24 @@ export interface DeviceConfigBase {
 }
 
 // 控制器配置（Modbus 或 HCNetSDK 梯控）
+/** Modbus DI/DO 主／副擴充（同 unitId 連續絕對位址；0-based） */
+export type IoModuleRole = "master" | "slave"
+
+export interface IoModuleConfig {
+	role: IoModuleRole
+	/** master=0；slave=1,2,… */
+	moduleId: number
+	serial?: string
+	addressStart: number
+	addressEnd: number
+}
+
+export type IoModuleHealthStatus = "online" | "offline"
+
+export interface IoModuleHealth extends IoModuleConfig {
+	status: IoModuleHealthStatus
+}
+
 export interface ControllerDeviceConfig extends DeviceConfigBase {
 	type: "controller";
 	host: string;
@@ -137,6 +155,8 @@ export interface ControllerDeviceConfig extends DeviceConfigBase {
 	password?: string;
 	// unitId 由後端自動生成，前端不應提供（但在讀取時可能包含）
 	unitId?: number;
+	/** 非 hcnet：主／副機區間；省略則執行期視為 master 0–15 */
+	ioModules?: IoModuleConfig[];
 }
 
 // 影像設備配置（串流機需 rtsp_url；NVR＝is_nvr＋host／帳密／ISAPI 埠，虛擬通道不建子設備）

@@ -14,22 +14,23 @@
 			/>
 		</label>
 
-		<label
-			class="flex w-full min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-		>
-			<span>控制器</span>
-			<FilterDropdown
-				v-model="deviceIdString"
-				:options="deviceOptions"
-				:placeholder="isLoadingDevices ? '載入中...' : '請選擇控制器'"
-				@update:modelValue="handleDeviceChange"
-			/>
-		</label>
+		<!-- 控制器／類型／地址同一列（對齊保全） -->
+		<div class="flex w-full min-w-0 flex-wrap items-end gap-3">
+			<label
+				class="flex min-w-[12rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			>
+				<span>控制器</span>
+				<FilterDropdown
+					v-model="deviceIdString"
+					:options="deviceOptions"
+					:placeholder="isLoadingDevices ? '載入中...' : '請選擇控制器'"
+					@update:modelValue="handleDeviceChange"
+				/>
+			</label>
 
-		<template v-if="localLocation.deviceId && localLocation.deviceId > 0">
-			<div class="flex w-full min-w-0 flex-wrap items-end gap-3">
+			<template v-if="localLocation.deviceId && localLocation.deviceId > 0">
 				<label
-					class="flex w-full max-w-[12rem] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+					class="flex w-[7rem] shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 				>
 					<span>類型<span class="required-mark">*</span></span>
 					<FilterDropdown
@@ -44,7 +45,7 @@
 				</label>
 
 				<label
-					class="flex w-full max-w-[16rem] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+					class="flex w-[9rem] shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 				>
 					<span>地址<span class="required-mark">*</span></span>
 					<div class="relative w-full">
@@ -74,8 +75,8 @@
 						</div>
 					</div>
 				</label>
-			</div>
-		</template>
+			</template>
+		</div>
 	</div>
 </template>
 

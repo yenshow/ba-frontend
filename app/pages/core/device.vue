@@ -160,8 +160,16 @@
 															class="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
 														></span>
 													</span>
-													<span v-else>
-														{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
+													<span v-else class="inline-flex flex-col gap-1">
+														<span>
+															{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
+														</span>
+														<span
+															v-if="formatIoModuleStatus(device.id)"
+															class="text-[10px] font-normal leading-tight text-white/60 2xl:text-xs"
+														>
+															{{ formatIoModuleStatus(device.id) }}
+														</span>
 													</span>
 												</span>
 											</td>
@@ -317,6 +325,7 @@ import type {
 	DeviceTypeCode,
 	DeviceConfig,
 	CameraDeviceConfig,
+	IoModuleHealth,
 } from "~/types/device"
 import type { NvrVirtualChannel } from "~/types/surveillance"
 import type {
@@ -506,6 +515,23 @@ const deviceIdsInPage = computed(() =>
 deviceConnectivity.bindDeviceIds(deviceIdsInPage)
 
 const connectivityLabels = computed(() => deviceConnectivity.labels.value)
+
+/**
+ * 控制器分頁：僅有副機時顯示模組健康（避免僅「主線上」冗餘）。
+ * 例：主線上 · 副1離線
+ */
+const formatIoModuleStatus = (deviceId: number): string => {
+	if (activeTab.value !== "controller") return ""
+	const modules = deviceConnectivity.getModules(deviceId)
+	const hasSlave = modules.some((m) => m.role === "slave")
+	if (!hasSlave) return ""
+	return modules
+		.map((m) => {
+			const label = m.role === "master" ? "主" : `副${m.moduleId}`
+			return `${label}${m.status === "online" ? "線上" : "離線"}`
+		})
+		.join(" · ")
+}
 
 const dateSortOptions = [
 	{ value: "desc", label: "由新到舊" },
@@ -733,8 +759,12 @@ watch(activeTab, (newTab) => {
 	}
 })
 
-const updateDeviceConnectivityStatus = (deviceId: number, status: "online" | "offline") => {
-	deviceConnectivity.applyWsStatus(deviceId, status)
+const updateDeviceConnectivityStatus = (
+	deviceId: number,
+	status: "online" | "offline",
+	modules?: IoModuleHealth[],
+) => {
+	deviceConnectivity.applyWsStatus(deviceId, status, modules)
 }
 
 const handleDeviceCreated = (event: DeviceCreatedEvent) => {
@@ -777,14 +807,14 @@ const handleDeviceDeleted = (event: DeviceDeletedEvent) => {
 const handleMonitoringStatus = (event: MonitoringDeviceStatusEvent) => {
 	if (event.system !== "device") return
 	const deviceId = event.deviceId || event.sourceId
-	updateDeviceConnectivityStatus(deviceId, event.status)
+	updateDeviceConnectivityStatus(deviceId, event.status, event.modules)
 }
 
 const handleMonitoringStatusBatch = (event: MonitoringDeviceStatusBatchEvent) => {
 	if (event.system !== "device") return
-	event.updates.forEach(({ sourceId, deviceId }) => {
+	event.updates.forEach(({ sourceId, deviceId, modules }) => {
 		const id = deviceId || sourceId
-		updateDeviceConnectivityStatus(id, event.status)
+		updateDeviceConnectivityStatus(id, event.status, modules)
 	})
 }
 

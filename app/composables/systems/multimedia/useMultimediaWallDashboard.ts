@@ -1,24 +1,18 @@
 import { useMultimediaDashboardApi } from "~/composables/systems/multimedia/useMultimediaDashboardApi"
-import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import type { MultimediaEnvReadingsSnapshot } from "~/types/multimedia"
 import { useImageCenter } from "~/composables/core/useImageCenter"
 import { formatDateInput } from "~/utils/dateUtils"
-import type { AlertRule } from "~/types/alert"
 import {
 	getAqiDerivedStatusFromReading,
 	getHeatIndexDerivedResultFromReading,
 } from "~/utils/environmentDerivedMetrics"
-import {
-	normalizeMonitoringStatusText,
-	monitoringStatusTextToUiStatus,
-	type MonitoringUiStatus,
-} from "~/utils/monitoringStatus"
+import type { MonitoringUiStatus } from "~/utils/monitoringStatus"
+import { FALLBACK_POLL_MS } from "~/utils/realtimeTiming"
 import {
 	ENV_METRIC_META,
-	WALL_ALERT_RULES_STATE_KEY,
 	WALL_ENV_SNAPSHOT_STATE_KEY,
+	WALL_GATE_ERROR_STATE_KEY,
 	WALL_NOW_STATE_KEY,
-	WALL_RULES_LOADED_STATE_KEY,
 	WALL_SETTINGS_STATE_KEY,
 	clampWallInt,
 	createDefaultWallSettings,
@@ -30,8 +24,6 @@ import {
 	DEFAULT_SCHEDULES_PER_PAGE,
 	normalizeEnvSnapshotResponse,
 } from "~/composables/systems/multimedia/multimediaWallShared"
-import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
-import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive"
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "m4v", "ogv", "ogg"])
 const isValidDateKey = (v: unknown): v is string =>
@@ -45,30 +37,35 @@ const getUrlExt = (url: string) => {
 	return dot >= 0 ? clean.slice(dot + 1).toLowerCase() : ""
 }
 
-/** 僅 /multimedia/dashboard 使用：載入設定、環境快照輪詢、公告／班表輪播 */
+const gateMessageFromError = (err: unknown): string => {
+	const e = err as { code?: string; message?: string; statusCode?: number }
+	if (e?.code === "FEATURE_NOT_LICENSED") return "未授權多媒體功能"
+	if (e?.code === "LICENSE_QUOTA_EXCEEDED") return "資訊牆授權額度已滿"
+	return e?.message || "無法連線至後端"
+}
+
+/** 資訊牆：載入設定、環境快照 REST 輪詢、公告／班表輪播（免登入） */
 export const useMultimediaWallDashboard = () => {
 	const api = useMultimediaDashboardApi()
 	const { resolveUrl } = useImageCenter()
-	const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules()
 
 	const settings = useState(WALL_SETTINGS_STATE_KEY, createDefaultWallSettings)
 	const envSnapshot = useState<MultimediaEnvReadingsSnapshot | null>(
 		WALL_ENV_SNAPSHOT_STATE_KEY,
-		() => null
+		() => null,
 	)
 	const now = useState(WALL_NOW_STATE_KEY, () => new Date())
-	const alertRules = useState<AlertRule[]>(WALL_ALERT_RULES_STATE_KEY, () => [])
-	const rulesLoaded = useState(WALL_RULES_LOADED_STATE_KEY, () => false)
+	const gateError = useState<string | null>(WALL_GATE_ERROR_STATE_KEY, () => null)
 
 	const heroUrl = computed(() => resolveUrl(settings.value.heroImageUrl))
 	const isHeroVideo = computed(() =>
-		VIDEO_EXTS.has(getUrlExt(heroUrl.value || settings.value.heroImageUrl || ""))
+		VIDEO_EXTS.has(getUrlExt(heroUrl.value || settings.value.heroImageUrl || "")),
 	)
 
 	const displayMetricKeys = computed(() =>
 		(settings.value.envDisplayParameters || [])
 			.map((k) => String(k || "").trim())
-			.filter(isEnvironmentMetricKey)
+			.filter(isEnvironmentMetricKey),
 	)
 
 	const loadEnvSnapshot = async () => {
@@ -80,32 +77,38 @@ export const useMultimediaWallDashboard = () => {
 			const res = await api.getEnvReadingsSnapshot()
 			const snapshot = normalizeEnvSnapshotResponse(res)
 			if (snapshot) envSnapshot.value = snapshot
-		} catch {
-			// 保留上一筆成功快照
+			gateError.value = null
+		} catch (err) {
+			gateError.value = gateMessageFromError(err)
 		}
 	}
 
 	const announcementsPerPage = computed(() =>
-		clampWallInt(settings.value.wallAnnouncementsPerPage, 1, 20, DEFAULT_ANNOUNCEMENTS_PER_PAGE)
+		clampWallInt(
+			settings.value.wallAnnouncementsPerPage,
+			1,
+			20,
+			DEFAULT_ANNOUNCEMENTS_PER_PAGE,
+		),
 	)
 	const schedulesPerPage = computed(() =>
-		clampWallInt(settings.value.wallSchedulesPerPage, 1, 20, DEFAULT_SCHEDULES_PER_PAGE)
+		clampWallInt(settings.value.wallSchedulesPerPage, 1, 20, DEFAULT_SCHEDULES_PER_PAGE),
 	)
 	const announcementsAutoPageIntervalMs = computed(() =>
 		clampWallInt(
 			settings.value.wallAnnouncementsAutoPageIntervalMs,
 			1000,
 			120000,
-			DEFAULT_ANNOUNCEMENTS_AUTO_PAGE_INTERVAL_MS
-		)
+			DEFAULT_ANNOUNCEMENTS_AUTO_PAGE_INTERVAL_MS,
+		),
 	)
 	const schedulesAutoPageIntervalMs = computed(() =>
 		clampWallInt(
 			settings.value.wallSchedulesAutoPageIntervalMs,
 			1000,
 			120000,
-			DEFAULT_SCHEDULES_AUTO_PAGE_INTERVAL_MS
-		)
+			DEFAULT_SCHEDULES_AUTO_PAGE_INTERVAL_MS,
+		),
 	)
 
 	const sortedAnnouncements = computed(() => {
@@ -123,15 +126,19 @@ export const useMultimediaWallDashboard = () => {
 	})
 
 	const todaySchedules = computed(() =>
-		(settings.value.schedules || []).filter((s) => s.enabled !== false)
+		(settings.value.schedules || []).filter((s) => s.enabled !== false),
 	)
 
 	const announcementPager = createWallPager(
 		sortedAnnouncements,
 		announcementsPerPage,
-		announcementsAutoPageIntervalMs
+		announcementsAutoPageIntervalMs,
 	)
-	const schedulePager = createWallPager(todaySchedules, schedulesPerPage, schedulesAutoPageIntervalMs)
+	const schedulePager = createWallPager(
+		todaySchedules,
+		schedulesPerPage,
+		schedulesAutoPageIntervalMs,
+	)
 
 	const toReadingNumber = (v: unknown): number | null => {
 		const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : Number.NaN
@@ -156,10 +163,7 @@ export const useMultimediaWallDashboard = () => {
 		if (type === "aqi") return aqiDerived.value.status
 		if (type === "heatIndex") return heatIndexDerived.value.status
 		if (value === null) return "offline"
-		if (!rulesLoaded.value) return "normal"
-		return monitoringStatusTextToUiStatus(
-			normalizeMonitoringStatusText(getStatusTextFromRules(type, value, alertRules.value))
-		)
+		return "normal"
 	}
 
 	const environmentMetrics = computed(() =>
@@ -179,32 +183,30 @@ export const useMultimediaWallDashboard = () => {
 			}
 			const value = getReading(key)
 			return { key, ...meta, value, status: getMetricStatus(key, value) }
-		})
+		}),
 	)
 
 	let clockTimer: ReturnType<typeof setInterval> | null = null
-
-	useWsFallbackPolling({
-		callback: () => loadEnvSnapshot(),
-	})
-
-	useEnvironmentReadingSubscription(() => {
-		void loadEnvSnapshot()
-	})
+	let pollTimer: ReturnType<typeof setInterval> | null = null
 
 	onMounted(async () => {
-		const rules = await getRules("environment", "threshold")
-		alertRules.value = rules as AlertRule[]
-		rulesLoaded.value = true
-
-		const res = await api.getSettings()
-		Object.assign(settings.value, res.settings)
+		try {
+			const res = await api.getSettings()
+			Object.assign(settings.value, res.settings)
+			gateError.value = null
+		} catch (err) {
+			gateError.value = gateMessageFromError(err)
+		}
 
 		await loadEnvSnapshot()
 
 		clockTimer = setInterval(() => {
 			now.value = new Date()
 		}, 1000)
+
+		pollTimer = setInterval(() => {
+			void loadEnvSnapshot()
+		}, FALLBACK_POLL_MS)
 
 		announcementPager.start()
 		schedulePager.start()
@@ -217,12 +219,17 @@ export const useMultimediaWallDashboard = () => {
 			clearInterval(clockTimer)
 			clockTimer = null
 		}
+		if (pollTimer) {
+			clearInterval(pollTimer)
+			pollTimer = null
+		}
 	})
 
 	return {
 		settings,
 		heroUrl,
 		isHeroVideo,
+		gateError,
 		pagedAnnouncements: announcementPager.pagedItems,
 		announcementPageIndex: announcementPager.pageIndex,
 		announcementTotalPages: announcementPager.totalPages,

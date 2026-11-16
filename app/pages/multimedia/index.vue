@@ -17,15 +17,13 @@
 			</div>
 			<div class="flex items-center gap-3">
 				<NuxtLink
-					to="/multimedia/dashboard"
-					target="_blank"
-					rel="noopener noreferrer"
+					to="/multimedia/wall"
 					class="rounded-xl bg-white/10 px-4 py-2 text-base text-white hover:bg-white/20 2xl:px-6 2xl:py-3 2xl:text-lg"
-					aria-label="開啟資訊牆看板"
 				>
 					資訊牆看板
 				</NuxtLink>
 				<button
+					v-if="activeTab !== 'seats'"
 					type="button"
 					class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 					:disabled="isSaving || !canUpdateSettings"
@@ -45,153 +43,167 @@
 				id-prefix="multimedia-tab"
 			>
 				<template #basic>
-					<div class="grid grid-cols-12 gap-4">
-						<!-- Left -->
-						<div class="col-span-7 space-y-4">
-							<section class="monitoring-panel rounded-2xl p-5 text-white">
-								<h2 class="text-2xl font-semibold tracking-[4px]">基本設定</h2>
+					<div
+						class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)_auto]"
+					>
+						<section
+							class="monitoring-panel flex min-h-0 flex-col rounded-2xl p-5 text-white lg:row-start-1"
+						>
+							<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">基本設定</h2>
+							<div class="mt-4 grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+								<ImageField
+									label="背景圖"
+									:value="draft.backgroundImageUrl"
+									accept="image/*"
+									@upload="(f) => handleUpload(f, (url) => (draft.backgroundImageUrl = url))"
+								/>
+								<ImageField
+									label="LOGO"
+									:value="draft.projectImageUrl"
+									accept="image/*"
+									@upload="(f) => handleUpload(f, (url) => (draft.projectImageUrl = url))"
+								/>
+								<ImageField
+									label="多媒體影像"
+									:value="draft.heroImageUrl"
+									accept="image/*,video/*"
+									@upload="(f) => handleUpload(f, (url) => (draft.heroImageUrl = url))"
+								/>
+							</div>
+						</section>
 
-								<div class="mt-4 grid grid-cols-3 gap-4">
-									<ImageField
-										label="背景圖"
-										:value="draft.backgroundImageUrl"
-										accept="image/*"
-										@upload="(f) => handleUpload(f, (url) => (draft.backgroundImageUrl = url))"
-									/>
-									<ImageField
-										label="LOGO"
-										:value="draft.projectImageUrl"
-										accept="image/*"
-										@upload="(f) => handleUpload(f, (url) => (draft.projectImageUrl = url))"
-									/>
-									<ImageField
-										label="多媒體影像"
-										:value="draft.heroImageUrl"
-										accept="image/*,video/*"
-										@upload="(f) => handleUpload(f, (url) => (draft.heroImageUrl = url))"
-									/>
+						<section
+							class="monitoring-panel flex min-h-0 flex-col rounded-2xl p-5 text-white lg:row-start-1"
+						>
+							<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">
+								環境資訊來源
+							</h2>
+
+							<div class="mt-4 min-h-0 flex-1">
+								<div
+									v-if="isLoadingSensorDevices"
+									class="py-4 text-center text-base text-white/60"
+								>
+									載入中...
 								</div>
-							</section>
+								<div
+									v-else-if="sensorDevices.length === 0"
+									class="py-4 text-center text-base text-amber-300"
+								>
+									尚無可用感測器，請先在「設備管理」中建立感測器設備
+								</div>
+								<div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+									<label
+										v-for="device in sensorDevices"
+										:key="device.id"
+										class="flex min-h-[2.75rem] cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/10"
+										:class="{
+											'border-cyan-400/50 bg-cyan-500/20': isEnvDeviceSelected(device.id),
+										}"
+									>
+										<input
+											type="checkbox"
+											:checked="isEnvDeviceSelected(device.id)"
+											class="h-4 w-4 shrink-0 cursor-pointer accent-cyan-400"
+											:aria-label="`勾選感測器 ${device.name}`"
+											@change="handleToggleEnvDevice(device.id)"
+										/>
+										<span class="truncate text-sm text-white 2xl:text-base">{{
+											device.name
+										}}</span>
+									</label>
+								</div>
+							</div>
 
-							<section class="monitoring-panel rounded-2xl p-5 text-white">
-								<h2 class="text-2xl font-semibold tracking-[4px]">布局橫幅</h2>
-								<div class="mt-4">
-									<textarea
-										v-model="draft.bannerMarqueeText"
-										rows="4"
+							<div class="mt-4 shrink-0 border-t border-white/20 pt-4">
+								<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+									<div
+										v-for="item in fixedEnvSkeleton"
+										:key="item.key"
+										class="flex min-h-[2.75rem] items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+									>
+										<span
+											class="h-2.5 w-2.5 shrink-0 rounded-full"
+											:class="item.isSupported ? 'bg-emerald-400' : 'bg-white/25'"
+											:title="item.isSupported ? '設備已支援' : '設備不支援 / 未選取'"
+										/>
+										<span class="truncate text-sm text-white 2xl:text-base">{{
+											item.label
+										}}</span>
+										<span class="ml-auto shrink-0 text-xs text-white/50 2xl:text-sm">{{
+											item.unit
+										}}</span>
+									</div>
+								</div>
+							</div>
+						</section>
+
+						<section
+							class="monitoring-panel flex flex-col rounded-2xl p-5 text-white lg:row-start-2"
+						>
+							<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">布局橫幅</h2>
+							<textarea
+								v-model="draft.bannerMarqueeText"
+								rows="3"
+								class="form-input-small mt-4 min-h-[6.5rem] w-full flex-1 resize-y"
+								placeholder="例如：社區水泵維護"
+								aria-label="布局橫幅文字"
+							/>
+						</section>
+
+						<section
+							class="monitoring-panel flex flex-col rounded-2xl p-5 text-white lg:row-start-2"
+						>
+							<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">
+								資訊牆分頁 / 輪播
+							</h2>
+							<div class="mt-4 grid flex-1 grid-cols-1 content-start gap-3 sm:grid-cols-2">
+								<label class="block min-w-0">
+									<div class="mb-1 text-sm text-white/80">公告每頁筆數</div>
+									<input
+										v-model.number="draft.wallAnnouncementsPerPage"
+										type="number"
+										min="1"
+										max="20"
 										class="form-input-small w-full"
-										placeholder="例如：社區水泵維護"
+										aria-label="公告每頁筆數"
 									/>
-								</div>
-							</section>
-						</div>
-
-						<!-- Right -->
-						<div class="col-span-5 space-y-4">
-							<section class="monitoring-panel rounded-2xl p-5 text-white">
-								<h2 class="text-2xl font-semibold tracking-[4px]">環境資訊來源</h2>
-
-								<div class="mt-4">
-									<div
-										v-if="isLoadingSensorDevices"
-										class="py-4 text-center text-base text-white/60"
-									>
-										載入中...
-									</div>
-									<div
-										v-else-if="sensorDevices.length === 0"
-										class="py-4 text-center text-base text-amber-300"
-									>
-										尚無可用感測器，請先在「設備管理」中建立感測器設備
-									</div>
-									<div v-else class="grid grid-cols-2 gap-2">
-										<label
-											v-for="device in sensorDevices"
-											:key="device.id"
-											class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-											:class="{
-												'border-cyan-400/50 bg-cyan-500/20': isEnvDeviceSelected(device.id),
-											}"
-										>
-											<input
-												type="checkbox"
-												:checked="isEnvDeviceSelected(device.id)"
-												@change="handleToggleEnvDevice(device.id)"
-												class="h-4 w-4 cursor-pointer accent-cyan-400"
-												:aria-label="`勾選感測器 ${device.name}`"
-											/>
-											<span class="text-base text-white">{{ device.name }}</span>
-										</label>
-									</div>
-								</div>
-
-								<div class="mt-5 border-t border-white/50 pt-4">
-									<div class="grid grid-cols-2 gap-2">
-										<div
-											v-for="item in fixedEnvSkeleton"
-											:key="item.key"
-											class="flex items-center gap-2 rounded border border-white/10 bg-white/5 p-2"
-										>
-											<span
-												class="h-2.5 w-2.5 rounded-full"
-												:class="item.isSupported ? 'bg-emerald-400' : 'bg-white/25'"
-												:title="item.isSupported ? '設備已支援' : '設備不支援 / 未選取'"
-											/>
-											<span class="text-base text-white">{{ item.label }}</span>
-											<span class="ml-auto text-sm text-white/50">{{ item.unit }}</span>
-										</div>
-									</div>
-								</div>
-							</section>
-
-							<section class="monitoring-panel rounded-2xl p-5 text-white">
-								<h2 class="text-2xl font-semibold tracking-[4px]">資訊牆分頁 / 輪播</h2>
-								<div class="mt-4 grid grid-cols-2 gap-4">
-									<label class="block">
-										<div class="mb-1 text-sm text-white/80">公告每頁筆數</div>
-										<input
-											v-model.number="draft.wallAnnouncementsPerPage"
-											type="number"
-											min="1"
-											max="20"
-											class="form-input-small w-full"
-										/>
-									</label>
-									<label class="block">
-										<div class="mb-1 text-sm text-white/80">排程每頁筆數</div>
-										<input
-											v-model.number="draft.wallSchedulesPerPage"
-											type="number"
-											min="1"
-											max="20"
-											class="form-input-small w-full"
-										/>
-									</label>
-								</div>
-								<div class="mt-4 grid grid-cols-2 gap-4">
-									<label class="block">
-										<div class="mb-1 text-sm text-white/80">公告輪播間隔（秒）</div>
-										<input
-											v-model.number="wallAnnouncementAutoPageIntervalSec"
-											type="number"
-											min="1"
-											max="120"
-											class="form-input-small w-full"
-										/>
-									</label>
-									<label class="block">
-										<div class="mb-1 text-sm text-white/80">排程輪播間隔（秒）</div>
-										<input
-											v-model.number="wallScheduleAutoPageIntervalSec"
-											type="number"
-											min="1"
-											max="120"
-											class="form-input-small w-full"
-										/>
-									</label>
-								</div>
-							</section>
-						</div>
+								</label>
+								<label class="block min-w-0">
+									<div class="mb-1 text-sm text-white/80">排程每頁筆數</div>
+									<input
+										v-model.number="draft.wallSchedulesPerPage"
+										type="number"
+										min="1"
+										max="20"
+										class="form-input-small w-full"
+										aria-label="排程每頁筆數"
+									/>
+								</label>
+								<label class="block min-w-0">
+									<div class="mb-1 text-sm text-white/80">公告輪播間隔（秒）</div>
+									<input
+										v-model.number="wallAnnouncementAutoPageIntervalSec"
+										type="number"
+										min="1"
+										max="120"
+										class="form-input-small w-full"
+										aria-label="公告輪播間隔秒數"
+									/>
+								</label>
+								<label class="block min-w-0">
+									<div class="mb-1 text-sm text-white/80">排程輪播間隔（秒）</div>
+									<input
+										v-model.number="wallScheduleAutoPageIntervalSec"
+										type="number"
+										min="1"
+										max="120"
+										class="form-input-small w-full"
+										aria-label="排程輪播間隔秒數"
+									/>
+								</label>
+							</div>
+						</section>
 					</div>
 				</template>
 
@@ -392,6 +404,74 @@
 						</div>
 					</div>
 				</template>
+
+				<template #seats>
+					<section class="space-y-4" aria-label="資訊牆授權席次">
+						<header class="me-4 flex flex-col gap-1">
+							<h2 class="text-2xl font-semibold tracking-[4px] text-white">授權電腦</h2>
+							<p class="text-sm text-white/70 2xl:text-base">
+								每台資訊牆佔 1 席（本機啟用憑證綁定指紋）；約 60 分鐘無請求自動回收。撤銷後原機須重新啟用。
+							</p>
+						</header>
+
+						<div
+							v-if="seatsLoading && wallSeats.length === 0"
+							class="py-10 text-center text-white/60"
+						>
+							載入中…
+						</div>
+						<div
+							v-else-if="wallSeats.length === 0"
+							class="monitoring-panel rounded-2xl px-6 py-12 text-center text-white/70"
+						>
+							目前無已註冊牆面電腦
+						</div>
+
+						<ul
+							v-else
+							class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+						>
+							<li
+								v-for="seat in wallSeats"
+								:key="seat.fingerprint"
+								class="monitoring-panel flex flex-col rounded-2xl p-5 text-white"
+							>
+								<div class="flex items-center justify-between gap-3">
+									<h3 class="min-w-0 truncate text-xl font-semibold tracking-[2px]">
+										{{ seat.hostname || "未知主機" }}
+									</h3>
+									<span
+										class="shrink-0 text-sm font-semibold"
+										:class="seat.active ? 'text-emerald-300' : 'text-white/45'"
+									>
+										{{ seat.active ? "使用中" : "離線" }}
+									</span>
+								</div>
+
+								<div class="mt-4 space-y-2 text-sm text-white/75">
+									<div class="flex items-baseline justify-between gap-3">
+										<span class="text-white/50">最近連線</span>
+										<span>{{ formatSeatTime(seat.lastSeenAt) }}</span>
+									</div>
+									<div class="flex items-baseline justify-between gap-3">
+										<span class="text-white/50">首次註冊</span>
+										<span>{{ formatSeatTime(seat.registeredAt) }}</span>
+									</div>
+								</div>
+
+								<button
+									type="button"
+									class="mt-5 w-full rounded-xl border border-rose-300/40 bg-rose-500/15 px-3 py-2 text-sm text-rose-100 hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+									:disabled="!canUpdateSettings || seatsLoading"
+									:aria-label="`撤銷席次 ${seat.hostname || seat.fingerprint}`"
+									@click="handleRevokeSeat(seat.fingerprint)"
+								>
+									撤銷席次
+								</button>
+							</li>
+						</ul>
+					</section>
+				</template>
 			</PageTabs>
 		</fieldset>
 
@@ -437,12 +517,67 @@ const { handleError } = useErrorHandler()
 const api = useMultimediaDashboardApi()
 const deviceApi = useDeviceApi()
 
+type WallSeatRow = {
+	fingerprint: string
+	hostname: string | null
+	registeredAt: string
+	lastSeenAt: string
+	active: boolean
+}
+const wallSeats = ref<WallSeatRow[]>([])
+const seatsLoading = ref(false)
+
+const formatSeatTime = (raw: string | null | undefined) => {
+	const s = String(raw || "").trim()
+	if (!s) return "—"
+	const d = new Date(s)
+	if (Number.isNaN(d.getTime())) return s
+	return d.toLocaleString("zh-TW", {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false,
+	})
+}
+
+const handleRefreshSeats = async () => {
+	seatsLoading.value = true
+	try {
+		const res = await api.listWallSeats()
+		wallSeats.value = Array.isArray(res?.seats) ? res.seats : []
+	} catch (error) {
+		handleError(error, "載入授權席次失敗")
+	} finally {
+		seatsLoading.value = false
+	}
+}
+
+const handleRevokeSeat = async (fingerprint: string) => {
+	if (!canUpdateSettings.value) return
+	seatsLoading.value = true
+	try {
+		await api.revokeWallSeat(fingerprint)
+		await handleRefreshSeats()
+	} catch (error) {
+		handleError(error, "撤銷席次失敗")
+		seatsLoading.value = false
+	}
+}
+
 const isSaving = ref(false)
-const activeTab = ref<"basic" | "content">("basic")
+const activeTab = ref<"basic" | "content" | "seats">("basic")
 const multimediaTabs = [
 	{ id: "basic" as const, label: "基本設定" },
 	{ id: "content" as const, label: "公告列表" },
+	{ id: "seats" as const, label: "授權電腦" },
 ]
+
+watch(activeTab, (tab) => {
+	if (tab === "seats") void handleRefreshSeats()
+})
 
 const FIXED_ENV_SKELETON_KEYS = [
 	"temperature",
@@ -858,6 +993,6 @@ const handleSave = async () => {
 }
 
 onMounted(async () => {
-	await Promise.allSettled([loadSensorDevices(), loadSettings()])
+	await Promise.allSettled([loadSensorDevices(), loadSettings(), handleRefreshSeats()])
 })
 </script>

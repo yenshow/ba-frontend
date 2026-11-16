@@ -23,6 +23,27 @@ export interface UpdateLightingZoneData {
 	locations?: (LightingLocation | Omit<LightingLocation, "id">)[]
 }
 
+export interface LightingScheduleRule {
+	id?: number
+	name: string
+	daysOfWeek: number[]
+	onTime: string
+	offTime: string
+	enabled: boolean
+	locationIds: number[]
+	createdAt?: string
+	updatedAt?: string
+}
+
+export type LightingScheduleRuleInput = {
+	name?: string
+	daysOfWeek?: number[]
+	onTime: string
+	offTime: string
+	enabled?: boolean
+	locationIds: number[]
+}
+
 export const useLightingApi = () => {
 	const { request } = useApiBase()
 	const zoneApi = useSystemLocationApiFactory<LightingZone, LightingLocation>({
@@ -46,6 +67,17 @@ export const useLightingApi = () => {
 		)
 	}
 
+	const getSchedules = async () => {
+		return request<{ rules: LightingScheduleRule[] }>("/lighting/schedules")
+	}
+
+	const putSchedules = async (rules: LightingScheduleRuleInput[]) => {
+		return request<{ rules: LightingScheduleRule[] }>("/lighting/schedules", {
+			method: "PUT",
+			body: { rules },
+		})
+	}
+
 	return {
 		getZones: zoneApi.getZones,
 		getZone: zoneApi.getZone,
@@ -54,5 +86,7 @@ export const useLightingApi = () => {
 		deleteZone: zoneApi.deleteZone,
 		getStatus,
 		getZoneStatus,
+		getSchedules,
+		putSchedules,
 	}
 }

@@ -12,6 +12,7 @@
 				:is-initial-loading="isInitialLoading"
 				:can-write="canUpdateLocation"
 				:can-manage-zones="canManageLocation"
+				:can-manage-schedules="canManageSchedules"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -22,6 +23,7 @@
 				:get-location-status-type="getLocationStatusType"
 				:get-location-alert-flash="getLocationAlertFlash"
 				@open-zone-management="handleOpenZoneDialog"
+				@open-schedule-management="showScheduleDialog = true"
 				@toggle-edit-mode="handleToggleEditMode"
 				@select-category="handleSelectCategory"
 				@save-location-position="handleSaveLocationPositionFromPanel"
@@ -59,6 +61,11 @@
 		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
+	<LightingScheduleDialog
+		v-model="showScheduleDialog"
+		:zones="lightingZones"
+		:can-edit="canManageSchedules"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -66,6 +73,7 @@ import { TOAST } from "~/config/toastCatalog"
 import { onMounted, watch } from "vue"
 import LightStatusCenter from "~/components/lighting/LightStatusCenter.vue"
 import LightingZonePlanPanel from "~/components/lighting/LightingZonePlanPanel.vue"
+import LightingScheduleDialog from "~/components/lighting/LightingScheduleDialog.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import SnapshotSyncHealthBadge from "~/components/common/SnapshotSyncHealthBadge.vue"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
@@ -90,6 +98,7 @@ definePageMeta({
 })
 
 import { PERM } from "~/config/permissionCodes"
+import { useAuth } from "~/composables/core/useAuth"
 const {
 	canControlDevice,
 	canManageLocation,
@@ -97,6 +106,12 @@ const {
 	canUpdateLocation,
 	canDeleteLocation,
 } = useLocationModuleRbac(PERM.lighting)
+const { hasPermission } = useAuth()
+const canManageSchedules = computed(
+	() =>
+		hasPermission(PERM.lighting.scheduleEdit) ||
+		hasPermission(PERM.lighting.locationUpdate)
+)
 const lightingApi = useLightingApi()
 const { handleError } = useErrorHandler()
 const toast = useToast()
@@ -112,6 +127,7 @@ const selectedZone = ref<string>("")
 const selectedCategory = ref("")
 const isEditMode = ref(false)
 const showZoneManagementDialog = ref(false)
+const showScheduleDialog = ref(false)
 
 const zonesById = computed(() => {
 	return new Map(lightingZones.value.map((zone) => [zone.id || zone.name, zone]))

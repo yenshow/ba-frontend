@@ -1,3 +1,6 @@
+import type { ControllerDeviceConfig } from "~/types/device"
+import { isAddressInDeviceIoModules } from "~/utils/modbusIoModules"
+
 export function useModbusValidation() {
 	/**
 	 * 將表單輸入正規化為合法 Modbus 位址（整數 0～65535），與 validateModbusAddress 邊界一致。
@@ -17,15 +20,21 @@ export function useModbusValidation() {
 	/**
 	 * 驗證 Modbus 地址（共用規則：0 ~ 65535）
 	 * - 未選擇設備時不驗證（允許空）
+	 * - 可選 deviceConfig：有 ioModules 時須落在區間內
 	 */
 	const validateModbusAddress = (
 		address: number | undefined | null,
-		deviceId: number | undefined | null
+		deviceId: number | undefined | null,
+		deviceConfig?: ControllerDeviceConfig | null,
 	): string | null => {
 		if (!deviceId || deviceId === 0) return null
 		if (address === undefined || address === null) return "Modbus 地址不能為空"
 		if (address < 0) return "Modbus 地址不能為負數"
 		if (address > 65535) return "Modbus 地址不能超過 65535"
+		if (deviceConfig) {
+			const ioCheck = isAddressInDeviceIoModules(deviceConfig, address)
+			if (ioCheck.ok === false) return ioCheck.message
+		}
 		return null
 	}
 

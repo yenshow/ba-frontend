@@ -78,9 +78,11 @@ const OPERATIONAL_SOURCE_FILTER_KEYS = [
 	"roll_call",
 	"elevator",
 	"alert_linkage",
+	"lighting_schedule",
+	"hvac_schedule",
 	"video_intercom",
-	"access_security_ring",
-	"access_security_talk",
+	"intercom_ring",
+	"intercom_talk",
 ] as const
 
 const EXTRA_SOURCE_LABELS: Record<string, string> = {
@@ -90,9 +92,11 @@ const EXTRA_SOURCE_LABELS: Record<string, string> = {
 	roll_call: SYSTEM_TYPE_LABELS.roll_call,
 	elevator: SYSTEM_TYPE_LABELS.elevator,
 	alert_linkage: "警報連動",
+	lighting_schedule: "照明排程",
+	hvac_schedule: "空調排程",
 	video_intercom: "組網對講",
-	access_security_ring: "廣播",
-	access_security_talk: "對講",
+	intercom_ring: "廣播",
+	intercom_talk: "對講",
 }
 
 export const getOperationalSourceLabel = (source: string): string =>

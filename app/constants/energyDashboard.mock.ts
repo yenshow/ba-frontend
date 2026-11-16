@@ -137,9 +137,30 @@ export const MOCK_ENERGY_SUMMARY: EnergyDashboardSummary = {
 		semi_peak_kwh: 5100,
 		off_peak_kwh: 3240,
 		touLineItems: [
-			{ band: "peak", season: "non_summer", label: "尖峰（非夏月）", kwh: 4200, rate: 0, subtotal: 0 },
-			{ band: "semi_peak", season: "non_summer", label: "半尖峰（非夏月）", kwh: 5100, rate: 4.48, subtotal: 22848 },
-			{ band: "off_peak", season: "non_summer", label: "離峰（非夏月）", kwh: 3240, rate: 1.99, subtotal: 6447.6 },
+			{
+				band: "peak",
+				season: "non_summer",
+				label: "尖峰（非夏月）",
+				kwh: 4200,
+				rate: 0,
+				subtotal: 0,
+			},
+			{
+				band: "semi_peak",
+				season: "non_summer",
+				label: "半尖峰（非夏月）",
+				kwh: 5100,
+				rate: 4.48,
+				subtotal: 22848,
+			},
+			{
+				band: "off_peak",
+				season: "non_summer",
+				label: "離峰（非夏月）",
+				kwh: 3240,
+				rate: 1.99,
+				subtotal: 6447.6,
+			},
 		],
 		powerFactor: {
 			enabled: true,

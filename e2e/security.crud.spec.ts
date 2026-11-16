@@ -4,7 +4,7 @@ import type { AccessLocationType } from "./helpers/zoneApi"
 
 /**
  * 安防 safe CRUD（區域）：API 建 → UI 可見 → API 改名 → UI 刪。
- * 環境＝地點管理；消防／緊急／煙霧＝樓層管理。
+ * 環境＝地點管理；消防／緊急／煙霧／保全＝樓層管理。
  */
 const SECURITY_PAGES: Array<{
 	path: string
@@ -29,6 +29,12 @@ const SECURITY_PAGES: Array<{
 		path: "/security/smoke-alarm",
 		title: "煙霧警報",
 		locationType: "smoke_alarm",
+		openDialog: "floor",
+	},
+	{
+		path: "/security/guard",
+		title: "保全系統",
+		locationType: "security",
 		openDialog: "floor",
 	},
 ]

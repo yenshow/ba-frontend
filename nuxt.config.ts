@@ -28,7 +28,13 @@ export default defineNuxtConfig({
 				{ name: "viewport", content: "width=device-width, initial-scale=1" },
 				{ name: "description", content: "樓宇自動化監控與管理系統" },
 			],
-			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
+			link: [
+				{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+				{
+					rel: "stylesheet",
+					href: "https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;800&display=swap",
+				},
+			],
 			script: [{ src: "/theme-init.js", tagPosition: "head" }],
 		},
 	},

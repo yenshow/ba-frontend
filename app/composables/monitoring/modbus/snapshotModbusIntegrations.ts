@@ -4,6 +4,7 @@ import type { EmergencyRescueStatusItem, EmergencyRescueZone } from "~/types/eme
 import type { FireStatusItem, FireZone } from "~/types/fire"
 import type { PowerStatusItem, PowerZone } from "~/types/power"
 import type { SmokeAlarmStatusItem, SmokeAlarmZone } from "~/types/smoke-alarm"
+import type { SecurityStatusItem, SecurityZone } from "~/types/security"
 import { defineSnapshotModbusIntegration } from "~/composables/monitoring/modbus/createSnapshotModbusIntegration"
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
@@ -11,6 +12,7 @@ import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/us
 import { useFireApi } from "~/composables/systems/fire/useFireApi"
 import { usePowerApi } from "~/composables/systems/power/usePowerApi"
 import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
+import { useSecurityApi } from "~/composables/systems/security/useSecurityApi"
 
 export const useDrainageModbusIntegration = defineSnapshotModbusIntegration<
 	DrainageStatusItem,
@@ -48,3 +50,8 @@ export const useSmokeAlarmModbusIntegration = defineSnapshotModbusIntegration<
 	SmokeAlarmStatusItem,
 	SmokeAlarmZone
 >("載入煙霧警報狀態失敗", "smoke_alarm", useSmokeAlarmApi, { optimisticPatch: "uiStatus" })
+
+export const useSecurityModbusIntegration = defineSnapshotModbusIntegration<
+	SecurityStatusItem,
+	SecurityZone
+>("載入保全狀態失敗", "security", useSecurityApi, { optimisticPatch: "uiStatus" })

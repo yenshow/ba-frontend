@@ -4,14 +4,16 @@
 			v-if="!selectedLocation"
 			class="py-8 text-center text-sm text-white/55 2xl:text-base"
 		>
-			請從左側選擇戶別
+			請從左側選擇點位
 		</div>
 		<template v-else>
-			<AccessSecurityLocationFields
+			<SecurityLocationFields
 				:location="selectedLocation"
-				:floor="selectedLocation.floor || ''"
+				:all-locations="locations"
+				:current-index="selectedLocationIndex"
 				:devices="devices"
 				:is-loading-devices="isLoadingDevices"
+				:access-control-devices="accessControlDevices"
 				@update="handleLocationUpdate"
 			/>
 			<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-1 text-xs text-amber-300">
@@ -22,24 +24,26 @@
 </template>
 
 <script setup lang="ts">
-import AccessSecurityLocationFields from "../LocationFormFields/AccessSecurityLocationFields.vue"
-import type { AccessSecurityZone, AccessSecurityLocation } from "~/types/accessSecurity"
+import type { SecurityZone, SecurityLocation } from "~/types/security"
 import type { Device } from "~/types/device"
+import SecurityLocationFields from "../LocationFormFields/SecurityLocationFields.vue"
 
 interface Props {
-	zone: AccessSecurityZone
+	zone: SecurityZone
 	selectedLocationIndex: number
 	devices: Device[]
 	isLoadingDevices: boolean
 	deviceHint?: string
+	accessControlDevices?: Device[]
 }
 
 interface Emits {
-	(e: "update-location", index: number, location: AccessSecurityLocation): void
+	(e: "update-location", index: number, location: SecurityLocation): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	deviceHint: "請先在「設備管理」建立視訊對講室內機（管理中心主機選填）",
+	deviceHint: "請先在「設備管理」中建立控制器設備",
+	accessControlDevices: () => [],
 })
 
 const emit = defineEmits<Emits>()
@@ -52,7 +56,7 @@ const selectedLocation = computed(() => {
 	return locations.value[idx] ?? null
 })
 
-const handleLocationUpdate = (updatedLocation: AccessSecurityLocation) => {
+const handleLocationUpdate = (updatedLocation: SecurityLocation) => {
 	emit("update-location", props.selectedLocationIndex, updatedLocation)
 }
 </script>

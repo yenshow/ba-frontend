@@ -10,7 +10,7 @@
 				required
 				class="form-input-small"
 				placeholder="例如：01、12"
-				aria-label="門禁保全戶號"
+				aria-label="對講系統戶號"
 				@input="handleChange"
 			/>
 		</label>
@@ -35,10 +35,10 @@ import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import { computed, reactive, watch } from "vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import type { Device } from "~/types/device"
-import type { AccessSecurityLocation } from "~/types/accessSecurity"
+import type { IntercomLocation } from "~/types/intercom"
 
 interface Props {
-	location: AccessSecurityLocation
+	location: IntercomLocation
 	devices: Device[]
 	isLoadingDevices?: boolean
 	floor?: string
@@ -50,10 +50,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-	(e: "update", value: AccessSecurityLocation): void
+	(e: "update", value: IntercomLocation): void
 }>()
 
-const localLocation = reactive<AccessSecurityLocation>({
+const localLocation = reactive<IntercomLocation>({
 	name: "",
 	floor: "",
 	indoorDeviceId: undefined,

@@ -1,11 +1,13 @@
 <template>
-	<div class="rounded-xl border border-white/20 bg-white/10 p-4">
-		<div class="flex items-center justify-between gap-3">
-			<div class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl 2xl:tracking-[6px]">
+	<div class="flex h-full min-w-0 flex-col rounded-xl border border-white/20 bg-white/10 p-3">
+		<div class="flex items-center justify-between gap-2">
+			<div
+				class="min-w-0 truncate text-base font-semibold tracking-[3px] text-white 2xl:text-lg 2xl:tracking-[4px]"
+			>
 				{{ label }}
 			</div>
 			<label
-				class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-1.5 text-sm font-light text-white transition-all hover:bg-white/10 2xl:text-base cursor-pointer"
+				class="shrink-0 cursor-pointer whitespace-nowrap rounded-xl border border-white/30 bg-transparent px-2.5 py-1 text-sm font-light text-white transition-all hover:bg-white/10 2xl:text-base"
 				:aria-label="`上傳：${label}`"
 				tabindex="0"
 				@keydown.enter.prevent.stop="handleOpenFile"
@@ -22,11 +24,13 @@
 			</label>
 		</div>
 
-		<div class="mt-3 overflow-hidden rounded-lg border border-white/10 bg-black/10">
+		<div
+			class="mt-3 aspect-[16/9] w-full overflow-hidden rounded-lg border border-white/10 bg-black/20"
+		>
 			<video
 				v-if="resolvedValue && isVideo"
 				:src="resolvedValue"
-				class="aspect-[16/9] object-contain max-h-[300px] mx-auto"
+				class="h-full w-full object-contain"
 				controls
 				playsinline
 				aria-label="影片預覽"
@@ -35,9 +39,12 @@
 				v-else-if="resolvedValue"
 				:src="resolvedValue"
 				:alt="label"
-				class="aspect-[16/9] object-contain max-h-[300px] mx-auto"
+				class="h-full w-full object-contain"
 			/>
-			<div v-else class="flex aspect-[16/9] items-center justify-center text-sm text-white/60">
+			<div
+				v-else
+				class="flex h-full w-full items-center justify-center text-sm text-white/60"
+			>
 				尚未設定
 			</div>
 		</div>
@@ -76,7 +83,9 @@ const getUrlExt = (url: string) => {
 	return String(parts[parts.length - 1]).toLowerCase()
 }
 
-const isVideo = computed(() => VIDEO_EXTS.has(getUrlExt(resolvedValue.value || props.value || "")))
+const isVideo = computed(() =>
+	VIDEO_EXTS.has(getUrlExt(resolvedValue.value || props.value || "")),
+)
 
 const handleOpenFile = () => {
 	fileInputRef.value?.click()

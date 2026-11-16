@@ -1,5 +1,8 @@
 import { useApiBase } from "~/composables/core/useApiBase"
-import type { MultimediaDashboardSettings, MultimediaEnvReadingsSnapshotResponse } from "~/types/multimedia"
+import type {
+	MultimediaDashboardSettings,
+	MultimediaEnvReadingsSnapshotResponse,
+} from "~/types/multimedia"
 
 export const useMultimediaDashboardApi = () => {
 	const { request } = useApiBase()
@@ -26,13 +29,37 @@ export const useMultimediaDashboardApi = () => {
 		} as any)
 	}
 
-	const getEnvReadingsSnapshot = async (): Promise<MultimediaEnvReadingsSnapshotResponse> => {
-		return request("/multimedia/dashboard/env-readings", {
-			method: "GET",
-			timeout: 30_000,
+	const getEnvReadingsSnapshot =
+		async (): Promise<MultimediaEnvReadingsSnapshotResponse> => {
+			return request("/multimedia/dashboard/env-readings", { method: "GET" } as any)
+		}
+
+	const listWallSeats = async (): Promise<{
+		seats: Array<{
+			fingerprint: string
+			hostname: string | null
+			registeredAt: string
+			lastSeenAt: string
+			active: boolean
+		}>
+	}> => {
+		return request("/multimedia/wall/seats", { method: "GET" } as any)
+	}
+
+	const revokeWallSeat = async (
+		fingerprint: string,
+	): Promise<{ revoked: boolean; fingerprint: string }> => {
+		return request(`/multimedia/wall/seats/${encodeURIComponent(fingerprint)}`, {
+			method: "DELETE",
 		} as any)
 	}
 
-	return { getSettings, updateSettings, uploadMedia, getEnvReadingsSnapshot }
+	return {
+		getSettings,
+		updateSettings,
+		uploadMedia,
+		getEnvReadingsSnapshot,
+		listWallSeats,
+		revokeWallSeat,
+	}
 }
-

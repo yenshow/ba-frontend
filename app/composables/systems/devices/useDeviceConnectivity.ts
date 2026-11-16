@@ -1,9 +1,13 @@
 import { computed, ref, watch, type Ref } from "vue"
-import type { DeviceConnectivityStatus } from "~/types/device"
+import type { DeviceConnectivityStatus, IoModuleHealth } from "~/types/device"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { DEVICE_CONNECTIVITY_DEBOUNCE_MS } from "~/utils/realtimeTiming"
 
-type DeviceConnectivitySnapshotItem = { device_id: number; status: DeviceConnectivityStatus }
+type DeviceConnectivitySnapshotItem = {
+	device_id: number
+	status: DeviceConnectivityStatus
+	modules?: IoModuleHealth[]
+}
 
 const toSortedUniqueIds = (ids: number[]) => {
 	return [...new Set(ids.filter((n) => Number.isFinite(n)))].sort((a, b) => a - b)
@@ -15,6 +19,7 @@ export const useDeviceConnectivity = (options?: { debounceMs?: number }) => {
 	const deviceApi = useDeviceApi()
 
 	const connectivityByDeviceId = ref<Record<number, DeviceConnectivityStatus>>({})
+	const modulesByDeviceId = ref<Record<number, IoModuleHealth[]>>({})
 	const isLoadingByDeviceId = ref<Record<number, boolean>>({})
 
 	const labels = computed<Record<DeviceConnectivityStatus, string>>(() => ({
@@ -34,17 +39,26 @@ export const useDeviceConnectivity = (options?: { debounceMs?: number }) => {
 		return connectivityByDeviceId.value[deviceId] || "offline"
 	}
 
+	const getModules = (deviceId: number): IoModuleHealth[] => {
+		return modulesByDeviceId.value[deviceId] || []
+	}
+
 	const isLoading = (deviceId: number) => Boolean(isLoadingByDeviceId.value[deviceId])
 
 	const applySnapshot = (items: DeviceConnectivitySnapshotItem[]) => {
 		const next = { ...connectivityByDeviceId.value }
+		const nextModules = { ...modulesByDeviceId.value }
 		const nextLoading = { ...isLoadingByDeviceId.value }
 		;(items || []).forEach((it) => {
 			if (!it?.device_id) return
 			next[it.device_id] = it.status === "online" ? "online" : "offline"
 			nextLoading[it.device_id] = false
+			if (Array.isArray(it.modules)) {
+				nextModules[it.device_id] = it.modules
+			}
 		})
 		connectivityByDeviceId.value = next
+		modulesByDeviceId.value = nextModules
 		isLoadingByDeviceId.value = nextLoading
 	}
 
@@ -101,6 +115,7 @@ export const useDeviceConnectivity = (options?: { debounceMs?: number }) => {
 
 	const reset = () => {
 		connectivityByDeviceId.value = {}
+		modulesByDeviceId.value = {}
 		isLoadingByDeviceId.value = {}
 	}
 
@@ -109,15 +124,29 @@ export const useDeviceConnectivity = (options?: { debounceMs?: number }) => {
 		delete next[deviceId]
 		connectivityByDeviceId.value = next
 
+		const nextModules = { ...modulesByDeviceId.value }
+		delete nextModules[deviceId]
+		modulesByDeviceId.value = nextModules
+
 		const nextLoading = { ...isLoadingByDeviceId.value }
 		delete nextLoading[deviceId]
 		isLoadingByDeviceId.value = nextLoading
 	}
 
-	const applyWsStatus = (deviceId: number, status: "online" | "offline") => {
+	const applyWsStatus = (
+		deviceId: number,
+		status: "online" | "offline",
+		modules?: IoModuleHealth[],
+	) => {
 		const next = { ...connectivityByDeviceId.value }
 		next[deviceId] = status
 		connectivityByDeviceId.value = next
+
+		if (Array.isArray(modules)) {
+			const nextModules = { ...modulesByDeviceId.value }
+			nextModules[deviceId] = modules
+			modulesByDeviceId.value = nextModules
+		}
 
 		const nextLoading = { ...isLoadingByDeviceId.value }
 		nextLoading[deviceId] = false
@@ -128,6 +157,7 @@ export const useDeviceConnectivity = (options?: { debounceMs?: number }) => {
 		labels,
 		getBadgeClass,
 		getStatus,
+		getModules,
 		isLoading,
 		refresh,
 		refreshDebounced,
