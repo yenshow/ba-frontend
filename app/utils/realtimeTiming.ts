@@ -12,6 +12,9 @@ export const SOCKET_RANDOMIZATION_FACTOR = 0.5
 /** WS 斷線後備（唯一業務後備間隔） */
 export const FALLBACK_POLL_MS = 30_000
 
+/** 後端 BitStore 新鮮度語意（快照 discrete／coil；僅文件對齊，前端不直連 store） */
+export const BIT_STORE_FRESHNESS_MS = 2000
+
 /** 警報基準：alert:count／badge／防抖重拉 */
 export const EVENT_COALESCE_MS = 500
 

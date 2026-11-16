@@ -37,7 +37,7 @@
 					/>
 
 					<div
-						v-if="selection.type === 'zone' && systemType === 'access_security'"
+						v-if="selection.type === 'zone' && systemType === 'intercom'"
 						class="rounded-lg border border-white/10 bg-white/[0.04] p-3"
 					>
 						<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">

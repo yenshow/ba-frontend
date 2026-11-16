@@ -721,7 +721,7 @@ const handleAddFromDraft = (zoneId: string, draft: LocationGroupDraft) => {
 	if (!name) {
 		toast.error(
 			groupMode.value === "floor"
-				? TOAST.ACCESS_SECURITY_FLOOR_NAME_REQUIRED
+				? TOAST.INTERCOM_FLOOR_NAME_REQUIRED
 				: TOAST.VIEW_CATEGORY_NAME_REQUIRED
 		)
 		return
@@ -747,7 +747,7 @@ const commitGroupRename = (zoneId: string, group: LocationGroupRow) => {
 	if (group.key !== LOCATION_GROUP_EMPTY_KEY && nextName === "") {
 		toast.error(
 			groupMode.value === "floor"
-				? TOAST.ACCESS_SECURITY_FLOOR_NAME_BLANK
+				? TOAST.INTERCOM_FLOOR_NAME_BLANK
 				: TOAST.VIEW_CATEGORY_NAME_BLANK
 		)
 		groupLabels[labelKey] = group.value

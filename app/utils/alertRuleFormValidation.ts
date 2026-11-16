@@ -127,7 +127,7 @@ export const validateAlertRuleFormForSave = (input: AlertRuleFormValidationInput
 
 	if (input.sipRingLinkage?.enabled && !input.sipRingLinkage.allDevices) {
 		if (input.sipRingLinkage.device_ids.length === 0) {
-			return "門禁保全語音廣播：請至少選擇一台室內機"
+			return "對講系統語音廣播：請至少選擇一台室內機"
 		}
 	}
 
