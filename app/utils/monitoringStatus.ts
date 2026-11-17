@@ -1,6 +1,6 @@
-export type MonitoringStatusText = "正常" | "異常" | "警報" | "離線";
+export type MonitoringStatusText = "正常" | "異常" | "警報" | "離線" | "活動";
 
-export type MonitoringUiStatus = "normal" | "warning" | "alarm" | "offline";
+export type MonitoringUiStatus = "normal" | "warning" | "alarm" | "offline" | "activity";
 
 export const normalizeMonitoringStatusText = (
 	raw: string | null | undefined
@@ -8,6 +8,7 @@ export const normalizeMonitoringStatusText = (
 	const s = String(raw ?? "").trim();
 	if (s === "警報") return "警報";
 	if (s === "異常") return "異常";
+	if (s === "活動") return "活動";
 	if (s === "離線" || s === "無資料") return "離線";
 	return "正常";
 };
@@ -17,6 +18,7 @@ export const monitoringStatusTextToUiStatus = (
 ): MonitoringUiStatus => {
 	if (status === "警報") return "alarm";
 	if (status === "異常") return "warning";
+	if (status === "活動") return "activity";
 	if (status === "離線") return "offline";
 	return "normal";
 };
@@ -25,19 +27,21 @@ export const monitoringUiStatusToBlinkClass = (
 	ui: MonitoringUiStatus
 ): "" | "blink-slow" | "blink-fast" => {
 	if (ui === "alarm") return "blink-fast";
-	if (ui === "warning") return "blink-slow";
+	if (ui === "warning" || ui === "activity") return "blink-slow";
 	return "";
 };
 
 export const monitoringUiStatusToCardBackgroundClass = (ui: MonitoringUiStatus): string => {
 	if (ui === "alarm") return "bg-[#FF0000]/90";
 	if (ui === "warning") return "bg-[#FFC801]/90";
+	if (ui === "activity") return "bg-[#38BDF8]/60";
 	return "bg-white/10";
 };
 
 export const monitoringUiStatusToDotColor = (ui: MonitoringUiStatus): string => {
 	if (ui === "alarm") return "#FF0000";
 	if (ui === "warning") return "#FFC701";
+	if (ui === "activity") return "#38BDF8";
 	if (ui === "normal") return "#00FFB5";
 	return "#9CA3AF";
 };
@@ -45,6 +49,7 @@ export const monitoringUiStatusToDotColor = (ui: MonitoringUiStatus): string => 
 export const monitoringUiStatusToText = (ui: MonitoringUiStatus): MonitoringStatusText => {
 	if (ui === "alarm") return "警報";
 	if (ui === "warning") return "異常";
+	if (ui === "activity") return "活動";
 	if (ui === "offline") return "離線";
 	return "正常";
 };

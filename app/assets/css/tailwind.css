@@ -583,6 +583,7 @@ html:not(.dark) .select-filter option {
    - normal：正常（綠）
    - warning：異常（黃，閃爍較柔和）
    - alarm：警報（紅，閃爍較強）
+   - activity：活動（藍，慢閃）
    照明等僅兩態者：normal + warning 即可。
    ======================================== */
 .map-location-dots .category-dot-wrapper,
@@ -667,6 +668,20 @@ html:not(.dark) .select-filter option {
 .map-location-dots .category-dot[data-status="alarm"]::after,
 .map-location-dots .location-dot[data-status="alarm"]::after {
 	content: "!";
+}
+/* 活動（藍）：天空藍內圈 + 白外框 */
+.map-location-dots .category-dot[data-status="activity"],
+.map-location-dots .location-dot[data-status="activity"] {
+	background: rgba(56, 189, 248, 0.32);
+	border-color: rgba(255, 255, 255, 0.78);
+}
+.map-location-dots .category-dot[data-status="activity"]::before,
+.map-location-dots .location-dot[data-status="activity"]::before {
+	background: #38bdf8;
+}
+.map-location-dots .category-dot[data-status="activity"]::after,
+.map-location-dots .location-dot[data-status="activity"]::after {
+	content: "●";
 }
 .map-location-dots .category-dot:focus-visible,
 .map-location-dots .location-dot:focus-visible {

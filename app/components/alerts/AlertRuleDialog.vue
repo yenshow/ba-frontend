@@ -148,15 +148,25 @@
 							</label>
 						</div>
 
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>訊息模板</span>
-							<textarea
-								v-model="form.message_suffix"
-								rows="3"
-								class="form-input min-h-[5.5rem] resize-y"
-								placeholder="例如：請值班人員立即到場確認"
-							/>
-						</label>
+						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+							<span>警報訊息</span>
+							<p class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70">
+								系統自動產生：{{ autoMessageExample }}
+							</p>
+							<label class="flex flex-col gap-2">
+								<span>附加說明（選填）</span>
+								<textarea
+									v-model="form.message_suffix"
+									rows="2"
+									class="form-input min-h-[4rem] resize-y"
+									placeholder="例如：請值班人員立即到場確認"
+									aria-label="附加說明，會接在系統自動訊息後面"
+								/>
+								<span class="text-xs text-white/50">
+									不需填寫變數或完整句子；留空即可。有填會接在上方主訊息後面。
+								</span>
+							</label>
+						</div>
 
 						<!-- Integrations: accordion -->
 						<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
@@ -550,6 +560,14 @@ const alertTypeOptions: OptionItem[] = [
 	{ value: "offline", label: "設備狀態警報" },
 	{ value: "threshold", label: "環境參數警報" }
 ];
+
+/** 對使用者說明系統固定主訊息（非讓其編輯模板變數） */
+const autoMessageExample = computed(() => {
+	if (form.alert_type === "offline") {
+		return "（區域 - 地點）連續 N 次無法連接";
+	}
+	return "（區域 - 地點）參數 超過／低於 門檻（當前值）";
+});
 
 const severityOptions: OptionItem[] = [
 	{ value: "warning", label: "異常" },
