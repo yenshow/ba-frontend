@@ -243,15 +243,25 @@
 							</template>
 						</div>
 
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>訊息模板</span>
-							<textarea
-								v-model="form.message_suffix"
-								rows="3"
-								class="form-input min-h-[5.5rem] resize-y"
-								placeholder="例如：請值班人員立即到場確認"
-							/>
-						</label>
+						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+							<span>警報訊息</span>
+							<p class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70">
+								系統自動產生：{{ autoMessageExample }}
+							</p>
+							<label class="flex flex-col gap-2">
+								<span>附加說明（選填）</span>
+								<textarea
+									v-model="form.message_suffix"
+									rows="2"
+									class="form-input min-h-[4rem] resize-y"
+									placeholder="例如：請值班人員立即到場確認"
+									aria-label="附加說明，會接在系統自動訊息後面"
+								/>
+								<span class="text-xs text-white/50">
+									不需填寫變數或完整句子；留空即可。有填會接在上方主訊息後面。
+								</span>
+							</label>
+						</div>
 
 						<!-- Integrations: accordion -->
 						<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
@@ -891,6 +901,30 @@ const energyConditionTypeOptions: OptionItem[] = [
 ]
 
 const isEnergySource = computed(() => form.source === "energy")
+
+/** 對使用者說明系統固定主訊息（非讓其編輯模板變數） */
+const autoMessageExample = computed(() => {
+	if (isEnergySource.value) {
+		const ct = energyConditionType.value
+		if (ct === "energy_meter_stale") {
+			return "（地點）：通訊逾時，最近 N 分鐘無讀數"
+		}
+		if (ct === "energy_reading_jump") {
+			return "（地點）：讀數跳動異常（單次 +X kWh）"
+		}
+		return "契約 N 級：即時功率／需量已達契約容量的 X%"
+	}
+	if (form.alert_type === "offline") {
+		return "（區域 - 地點）連續 N 次無法連接"
+	}
+	if (form.alert_type === "di") {
+		return "（區域 - 地點）DI 通道 N 觸發"
+	}
+	if (form.alert_type === "do") {
+		return "（區域 - 地點）DO 通道 N 觸發"
+	}
+	return "（區域 - 地點）參數 超過／低於 門檻（當前值）"
+})
 
 const severityOptionsForForm = computed(() =>
 	isEnergySource.value

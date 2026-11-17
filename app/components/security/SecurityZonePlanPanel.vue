@@ -26,11 +26,19 @@
 							</PermissionActionButton>
 							<PermissionActionButton
 								:allowed="canManageSchedules ?? false"
-								aria-label="許可時段"
+								aria-label="時間排程"
 								:class="sideActionBtnClass"
 								@click="emit('open-schedule-management')"
 							>
-								許可時段
+								時間排程
+							</PermissionActionButton>
+							<PermissionActionButton
+								:allowed="true"
+								aria-label="開啟完整報表"
+								:class="sideActionBtnClass"
+								@click="emit('open-full-report')"
+							>
+								完整報表
 							</PermissionActionButton>
 							<!-- 編輯定位置底：CategoryList absolute 下展才不會蓋住其他按鈕 -->
 							<div class="relative">
@@ -155,6 +163,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
 	"open-zone-management": []
 	"open-schedule-management": []
+	"open-full-report": []
 	"toggle-edit-mode": []
 	"select-category": [locationId: string]
 	"save-location-position": [payload: { locationId: string; x: number; y: number }]

@@ -16,19 +16,36 @@
 							id="security-schedule-title"
 							class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
 						>
-							許可時段
+							時間排程
 						</h3>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉對話框"
-							@click="handleClose"
-						>
-							&times;
-						</button>
+						<div class="flex items-center gap-3">
+							<FormChangeIndicator
+								v-if="hasUnsavedChanges"
+								:has-changes="hasUnsavedChanges"
+								:changed-fields="changedFieldsList"
+								:message="changeSummary"
+								:show-reset="true"
+								@reset="handleDiscard"
+							/>
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+								aria-label="關閉對話框"
+								@click="handleClose"
+							>
+								&times;
+							</button>
+						</div>
 					</header>
 
 					<div class="flex min-h-0 flex-1 flex-col overflow-hidden pr-7 2xl:pr-8">
+						<div
+							class="mb-3 rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2.5 text-xs leading-relaxed text-white/75 2xl:text-sm"
+							role="note"
+						>
+							<span class="font-medium text-cyan-100">如何生效：</span>
+							為點位新增時段並勾選「啟用」後儲存。啟用時段內＝活動（不進警示）；時段外＝警報。未設或未啟用＝只顯示活動。DI 地點需已有警報規則（儲存地點時通常已自動建立）。
+						</div>
 						<p v-if="errorMessage" class="mb-3 form-error-text-lg" role="alert">
 							{{ errorMessage }}
 						</p>
@@ -88,7 +105,7 @@
 
 							<section
 								class="col-span-12 flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5 lg:col-span-8"
-								aria-label="許可時段詳細設定"
+								aria-label="時間排程詳細設定"
 							>
 								<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-4 2xl:p-5">
 									<div
@@ -99,7 +116,7 @@
 											請從左側選擇點位
 										</p>
 										<p class="mt-1 text-xs text-white/55 2xl:text-sm">
-											選取後即可編輯該點許可時段
+											選取後即可編輯該點時間排程
 										</p>
 									</div>
 
@@ -147,14 +164,13 @@
 														/>
 														啟用
 													</label>
-													<PermissionActionButton
+													<IconTrashButton
 														:allowed="canEdit"
-														class="shrink-0 rounded-md px-2 py-1 text-xs text-rose-300/90 transition-colors enabled:hover:bg-rose-500/15 enabled:hover:text-rose-200 2xl:text-sm"
+														size="sm"
+														title="移除時段"
 														:aria-label="`移除時段 ${idx + 1}`"
 														@click="handleRemoveRule(idx)"
-													>
-														移除
-													</PermissionActionButton>
+													/>
 												</div>
 
 												<div class="space-y-3 p-3 2xl:space-y-4 2xl:p-4">
@@ -184,7 +200,7 @@
 																<input
 																	v-model="rule.windowStart"
 																	type="time"
-																	class="form-input-small w-full"
+																	class="form-input-small w-full [color-scheme:dark]"
 																	:aria-label="`時段 ${idx + 1} 開始時間`"
 																	:disabled="!canEdit"
 																/>
@@ -196,7 +212,7 @@
 																<input
 																	v-model="rule.windowEnd"
 																	type="time"
-																	class="form-input-small w-full"
+																	class="form-input-small w-full [color-scheme:dark]"
 																	:aria-label="`時段 ${idx + 1} 結束時間`"
 																	:disabled="!canEdit"
 																/>
@@ -304,7 +320,7 @@
 						<div class="flex-1"></div>
 						<PermissionActionButton
 							:allowed="canEdit && !!selectedRow"
-							:disabled="saving || loading || !selectedRow"
+							:disabled="!hasUnsavedChanges || saving || loading || !selectedRow"
 							aria-label="儲存時段"
 							class="btn-primary"
 							@click="handleSave"
@@ -316,6 +332,15 @@
 			</div>
 		</Transition>
 	</Teleport>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialog.config.value.title"
+		:message="confirmDialog.config.value.message"
+		:details="confirmDialog.config.value.details"
+		:type="confirmDialog.config.value.type"
+		@confirm="handleConfirmAction"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -323,7 +348,12 @@ import type { SecurityZone } from "~/types/security"
 import { useSecurityApi } from "~/composables/systems/security/useSecurityApi"
 import { useToast } from "~/composables/core/useToast"
 import { TOAST } from "~/config/toastCatalog"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { FORM_UNSAVED_CLOSE_CONFIRM } from "~/utils/formDialog"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 
 interface ScheduleDraft {
 	name: string
@@ -359,6 +389,8 @@ const emit = defineEmits<{
 
 const securityApi = useSecurityApi()
 const toast = useToast()
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = confirmDialog.showDialog
 
 const canEdit = computed(() => Boolean(props.canEdit))
 
@@ -376,9 +408,48 @@ const ALL_DOW = DOW_OPTIONS.map((d) => d.value)
 
 const selectedKey = ref("")
 const rules = ref<ScheduleDraft[]>([])
+const baselineRules = ref<ScheduleDraft[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const errorMessage = ref("")
+const pendingSelectKey = ref<string | null>(null)
+const confirmAction = ref<"close" | "switch">("close")
+
+const cloneRules = (list: ScheduleDraft[]): ScheduleDraft[] =>
+	list.map((r) => ({
+		name: r.name,
+		daysOfWeek: [...r.daysOfWeek],
+		windowStart: r.windowStart,
+		windowEnd: r.windowEnd,
+		enabled: r.enabled,
+	}))
+
+const rulesSignature = (list: ScheduleDraft[]) =>
+	JSON.stringify(
+		list.map((r) => ({
+			name: (r.name || "").trim(),
+			daysOfWeek: [...r.daysOfWeek].sort((a, b) => a - b),
+			windowStart: r.windowStart,
+			windowEnd: r.windowEnd,
+			enabled: r.enabled !== false,
+		}))
+	)
+
+const hasUnsavedChanges = computed(
+	() => rulesSignature(rules.value) !== rulesSignature(baselineRules.value)
+)
+
+const changedFieldsList = computed(() =>
+	hasUnsavedChanges.value ? ["時段規則"] : []
+)
+
+const changeSummary = computed(() =>
+	hasUnsavedChanges.value ? "有未儲存的變更" : ""
+)
+
+const commitBaseline = () => {
+	baselineRules.value = cloneRules(rules.value)
+}
 
 const zoneGroups = computed((): ZoneGroup[] => {
 	const groups: ZoneGroup[] = []
@@ -438,20 +509,63 @@ const loadRules = async (locationId: number) => {
 	try {
 		const res = await securityApi.getSchedules(locationId)
 		rules.value = (res.rules || []).map(toDraft)
+		commitBaseline()
 	} catch (err: unknown) {
 		errorMessage.value = err instanceof Error ? err.message : "載入時段失敗"
 		rules.value = []
+		commitBaseline()
 	} finally {
 		loading.value = false
 	}
 }
 
-const handleSelectLocation = (row: LocationRow) => {
+const applySelectLocation = (row: LocationRow) => {
 	selectedKey.value = row.key
 	void loadRules(row.locationId)
 }
 
-const handleClose = () => emit("update:modelValue", false)
+const handleSelectLocation = (row: LocationRow) => {
+	if (row.key === selectedKey.value) return
+	if (hasUnsavedChanges.value) {
+		pendingSelectKey.value = row.key
+		confirmAction.value = "switch"
+		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
+		return
+	}
+	applySelectLocation(row)
+}
+
+const closeDialog = () => {
+	errorMessage.value = ""
+	pendingSelectKey.value = null
+	emit("update:modelValue", false)
+}
+
+const handleClose = () => {
+	if (hasUnsavedChanges.value) {
+		confirmAction.value = "close"
+		pendingSelectKey.value = null
+		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
+		return
+	}
+	closeDialog()
+}
+
+const handleDiscard = () => {
+	rules.value = cloneRules(baselineRules.value)
+	errorMessage.value = ""
+}
+
+const handleConfirmAction = () => {
+	if (confirmAction.value === "switch" && pendingSelectKey.value) {
+		const key = pendingSelectKey.value
+		pendingSelectKey.value = null
+		const row = locationRows.value.find((r) => r.key === key)
+		if (row) applySelectLocation(row)
+		return
+	}
+	closeDialog()
+}
 
 const handleAddRule = () => {
 	rules.value.push({
@@ -506,10 +620,10 @@ const handleSave = async () => {
 			}))
 		)
 		rules.value = (res.rules || []).map(toDraft)
+		commitBaseline()
 		toast.success(TOAST.SETTINGS_SAVED)
 	} catch (err: unknown) {
 		errorMessage.value = err instanceof Error ? err.message : "儲存時段失敗"
-		toast.error(errorMessage.value)
 	} finally {
 		saving.value = false
 	}
@@ -520,11 +634,13 @@ watch(
 	(open) => {
 		if (!open) return
 		errorMessage.value = ""
+		pendingSelectKey.value = null
 		const first = locationRows.value[0]
-		if (first) handleSelectLocation(first)
+		if (first) applySelectLocation(first)
 		else {
 			selectedKey.value = ""
 			rules.value = []
+			commitBaseline()
 		}
 	}
 )

@@ -62,7 +62,10 @@ type OperationalEventMetaItem = {
 	value: string
 }
 
-/** 營運事件來源篩選（基礎設施對齊警示紀錄命名；另含進出／連動） */
+/**
+ * 營運事件來源篩選（粗分類）。
+ * 排程／對講細 source 由後端別名展開；列表 badge 亦顯示合併後標籤。
+ */
 const OPERATIONAL_SOURCE_FILTER_KEYS = [
 	"environment",
 	"lighting",
@@ -73,37 +76,47 @@ const OPERATIONAL_SOURCE_FILTER_KEYS = [
 	"fire",
 	"smoke_alarm",
 	"emergency_rescue",
+	"security",
 	"people_counting",
 	"vehicle_access",
 	"roll_call",
 	"elevator",
+	"intercom",
 	"alert_linkage",
-	"lighting_schedule",
-	"hvac_schedule",
-	"video_intercom",
-	"intercom_ring",
-	"intercom_talk",
 ] as const
 
+/** 落庫細 source → 顯示用系統鍵（對齊後端 SOURCE_FILTER_ALIASES） */
+const SOURCE_DISPLAY_ALIASES: Record<string, string> = {
+	access_control: "people_counting",
+	lighting_schedule: "lighting",
+	hvac_schedule: "hvac",
+	video_intercom: "intercom",
+	intercom_ring: "intercom",
+	intercom_talk: "intercom",
+}
+
+/** ALERT_SOURCE_LABELS 未涵蓋的模組／跨系統 */
 const EXTRA_SOURCE_LABELS: Record<string, string> = {
 	people_counting: SYSTEM_TYPE_LABELS.people_counting,
-	access_control: SYSTEM_TYPE_LABELS.people_counting, // 歷史列
 	vehicle_access: SYSTEM_TYPE_LABELS.vehicle_access,
 	roll_call: SYSTEM_TYPE_LABELS.roll_call,
 	elevator: SYSTEM_TYPE_LABELS.elevator,
+	intercom: SYSTEM_TYPE_LABELS.intercom,
 	alert_linkage: "警報連動",
-	lighting_schedule: "照明排程",
-	hvac_schedule: "空調排程",
-	video_intercom: "組網對講",
-	intercom_ring: "廣播",
-	intercom_talk: "對講",
 }
 
-export const getOperationalSourceLabel = (source: string): string =>
-	EXTRA_SOURCE_LABELS[source] ?? getSourceLabel(source)
+const resolveOperationalSourceKey = (source: string): string =>
+	SOURCE_DISPLAY_ALIASES[source] ?? source
 
-const getOperationalSourceFilterLabel = (source: string): string =>
-	EXTRA_SOURCE_LABELS[source] ?? getAlertSourceFilterLabel(source)
+export const getOperationalSourceLabel = (source: string): string => {
+	const key = resolveOperationalSourceKey(source)
+	return EXTRA_SOURCE_LABELS[key] ?? getSourceLabel(key)
+}
+
+const getOperationalSourceFilterLabel = (source: string): string => {
+	const key = resolveOperationalSourceKey(source)
+	return EXTRA_SOURCE_LABELS[key] ?? getAlertSourceFilterLabel(key)
+}
 
 export const buildOperationalSourceFilterOptions = () => [
 	{ value: "", label: "全部系統" },

@@ -24,6 +24,7 @@
 				:tooltip-title="tooltipTitle"
 				@open-zone-management="handleOpenZoneDialog"
 				@open-schedule-management="showScheduleDialog = true"
+				@open-full-report="handleOpenFullReport"
 				@toggle-edit-mode="handleToggleEditMode"
 				@select-category="handleSelectCategory"
 				@save-location-position="handleSaveLocationPositionFromPanel"
@@ -68,6 +69,10 @@
 		:zones="securityZones"
 		:can-edit="canManageSchedules"
 	/>
+
+	<SimulationFrame v-model="showSimulationFrame" title="保全系統 - 完整報表">
+		<SecurityOperationalReport />
+	</SimulationFrame>
 </template>
 
 <script setup lang="ts">
@@ -76,10 +81,13 @@ import { onMounted, watch, type Ref } from "vue"
 import SecurityMonitorCenter from "~/components/security/SecurityMonitorCenter.vue"
 import SecurityZonePlanPanel from "~/components/security/SecurityZonePlanPanel.vue"
 import SecurityScheduleDialog from "~/components/security/SecurityScheduleDialog.vue"
+import SecurityOperationalReport from "~/components/security/SecurityOperationalReport.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import SnapshotSyncHealthBadge from "~/components/common/SnapshotSyncHealthBadge.vue"
+import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import type { SecurityZone, SecurityLocation, SecurityStatusItem } from "~/types/security"
 import { deriveSecurityUiStatus } from "~/types/security"
+import { systemUiStatusToText } from "~/utils/monitoringStatus"
 import { useSecurityApi } from "~/composables/systems/security/useSecurityApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
@@ -119,6 +127,7 @@ const leftSectionHeight = ref<number | null>(null)
 
 const securityZones = ref<SecurityZone[]>([])
 const showScheduleDialog = ref(false)
+const showSimulationFrame = ref(false)
 
 const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
 	alertRulesSource: "security",
@@ -192,9 +201,11 @@ const getLocationAlertFlash = (loc: SecurityLocation): "none" | "slow" | "fast" 
 
 const tooltipTitle = (loc: SecurityLocation) => {
 	const s = uiStatusForLocation(loc)
-	const label =
-		s === "normal" ? "正常" : s === "warning" ? "異常" : "警報"
-	return `${loc.name}（${label}）`
+	return `${loc.name}（${systemUiStatusToText(s)}）`
+}
+
+const handleOpenFullReport = () => {
+	showSimulationFrame.value = true
 }
 
 const handleZoneSelected = (zoneId: string) => {

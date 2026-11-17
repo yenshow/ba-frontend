@@ -23,17 +23,21 @@
 								: 'bg-transparent text-white',
 							zoneHasAlarm(zone)
 								? 'ring-2 ring-red-500/90 ring-offset-2 ring-offset-transparent'
-								: zoneHasWarning(zone)
-									? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
-									: '',
+								: zoneHasActivity(zone)
+									? 'ring-2 ring-sky-400/90 ring-offset-2 ring-offset-transparent'
+									: zoneHasWarning(zone)
+										? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
+										: '',
 							getZoneAlertBlinkClass(zone),
 						]"
 						:aria-label="
 							zoneHasAlarm(zone)
 								? `${zone.name}，此區域有地點警報`
-								: zoneHasWarning(zone)
-									? `${zone.name}，此區域有地點異常`
-									: `${zone.name}，選取此樓層`
+								: zoneHasActivity(zone)
+									? `${zone.name}，此區域有地點活動`
+									: zoneHasWarning(zone)
+										? `${zone.name}，此區域有地點異常`
+										: `${zone.name}，選取此樓層`
 						"
 						@click="handleZoneClick(zone.id || zone.name || '')"
 					>
@@ -42,11 +46,23 @@
 						</h4>
 					</button>
 					<span
-						v-if="zoneHasWarning(zone)"
+						v-if="zoneHasAlarm(zone) || zoneHasActivity(zone) || zoneHasWarning(zone)"
 						class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold leading-none 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
-						:class="zoneHasAlarm(zone) ? 'bg-red-500 text-white' : 'bg-amber-400 text-teal-950'"
+						:class="
+							zoneHasAlarm(zone)
+								? 'bg-red-500 text-white'
+								: zoneHasActivity(zone)
+									? 'bg-sky-400 text-teal-950'
+									: 'bg-amber-400 text-teal-950'
+						"
 						aria-hidden="true"
-						:title="zoneHasAlarm(zone) ? '此區域有地點警報' : '此區域有地點異常'"
+						:title="
+							zoneHasAlarm(zone)
+								? '此區域有地點警報'
+								: zoneHasActivity(zone)
+									? '此區域有地點活動'
+									: '此區域有地點異常'
+						"
 					>
 						!
 					</span>
@@ -72,7 +88,10 @@
 									alt=""
 									:aria-label="`${row.loc.name} 保全設備圖示`"
 									class="h-16 w-16 object-contain 2xl:h-24 2xl:w-24"
-									:class="{ 'blink-fast': rowUiStatus(row.loc) === 'alarm' }"
+									:class="{
+										'blink-fast': rowUiStatus(row.loc) === 'alarm',
+										'blink-slow': rowUiStatus(row.loc) === 'activity',
+									}"
 								/>
 							</div>
 							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
@@ -115,6 +134,7 @@ import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
 import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import type { SecurityZone, SecurityLocation, SecurityStatusItem } from "~/types/security"
 import { deriveSecurityUiStatus } from "~/types/security"
+import { systemUiStatusToText } from "~/utils/monitoringStatus"
 import { compareZonesLoose } from "~/utils/sortOrder"
 const props = defineProps<{
 	zones: SecurityZone[]
@@ -174,17 +194,12 @@ const getItemForLocation = (loc: SecurityLocation): SecurityStatusItem | null =>
 const rowUiStatus = (loc: SecurityLocation): SecurityStatusItem["uiStatus"] =>
 	deriveSecurityUiStatus(getItemForLocation(loc))
 
-const statusLabel = (s: SecurityStatusItem["uiStatus"]) => {
-	if (s === "normal") return "正常"
-	if (s === "alarm") return "警報"
-	if (s === "warning") return "異常"
-	return "異常"
-}
+const statusLabel = (s: SecurityStatusItem["uiStatus"]) => systemUiStatusToText(s)
 
 const statusDotClass = (s: SecurityStatusItem["uiStatus"]) => {
 	if (s === "normal") return "bg-emerald-400"
 	if (s === "alarm") return "bg-rose-500"
-	if (s === "warning") return "bg-amber-400"
+	if (s === "activity") return "bg-sky-400"
 	return "bg-amber-400"
 }
 
@@ -193,11 +208,10 @@ type RowFlash = "none" | "slow" | "alarm-fast"
 const flashFromUi = (s: SecurityStatusItem["uiStatus"]): RowFlash => {
 	if (s === "normal") return "none"
 	if (s === "alarm") return "alarm-fast"
-	return "slow"
+	return "slow" // warning／activity
 }
 
-const rowFlashMode = (_zone: SecurityZone, loc: SecurityLocation): RowFlash =>
-	flashFromUi(rowUiStatus(loc))
+const rowFlashMode = (loc: SecurityLocation): RowFlash => flashFromUi(rowUiStatus(loc))
 
 const flashModeToClass = (mode: RowFlash): string => {
 	if (mode === "alarm-fast") return "blink-fast"
@@ -206,25 +220,29 @@ const flashModeToClass = (mode: RowFlash): string => {
 }
 
 const zoneHasWarning = (zone: SecurityZone): boolean =>
-	locationsForZone(zone).some(({ loc }) => rowFlashMode(zone, loc) !== "none")
+	locationsForZone(zone).some(({ loc }) => rowUiStatus(loc) === "warning")
+
+const zoneHasActivity = (zone: SecurityZone): boolean =>
+	locationsForZone(zone).some(({ loc }) => rowUiStatus(loc) === "activity")
 
 const zoneHasAlarm = (zone: SecurityZone): boolean =>
 	locationsForZone(zone).some(({ loc }) => rowUiStatus(loc) === "alarm")
 
 const getZoneAlertBlinkClass = (zone: SecurityZone): string => {
-	const modes = locationsForZone(zone).map(({ loc }) => rowFlashMode(zone, loc))
+	const modes = locationsForZone(zone).map(({ loc }) => rowFlashMode(loc))
 	if (modes.includes("alarm-fast")) return "blink-fast"
 	if (modes.includes("slow")) return "blink-slow"
 	return ""
 }
 
-const locationRowFlashClass = (zone: SecurityZone, loc: SecurityLocation): string =>
-	flashModeToClass(rowFlashMode(zone, loc))
+const locationRowFlashClass = (_zone: SecurityZone, loc: SecurityLocation): string =>
+	flashModeToClass(rowFlashMode(loc))
 
 const locationRowBackgroundClass = (_zone: SecurityZone, loc: SecurityLocation): string => {
-	const mode = rowFlashMode(_zone, loc)
-	if (mode === "alarm-fast") return "bg-[#FF0000]/60"
-	if (mode === "slow") return "bg-[#FFC801]/60"
+	const s = rowUiStatus(loc)
+	if (s === "alarm") return "bg-[#FF0000]/60"
+	if (s === "activity") return "bg-[#38BDF8]/50"
+	if (s === "warning") return "bg-[#FFC801]/60"
 	return "bg-white/10"
 }
 </script>

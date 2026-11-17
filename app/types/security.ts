@@ -19,13 +19,15 @@ export interface SecurityStatusItem {
 	error?: string
 }
 
-/** 與後端對齊：`uiStatus` 已含連線／讀值語意；勿用 raw.running===false 推論為正常（離線時後端仍會正規化成 { running:false }）。 */
+/** 與後端對齊：`uiStatus` 已含連線／讀值／時間排程語意；勿用 raw.running===false 推論為正常。 */
 export const deriveSecurityUiStatus = (
 	item: SecurityStatusItem | null | undefined
 ): SecurityStatusItem["uiStatus"] => {
 	if (!item) return "warning"
+	const normalized = normalizeSystemUiStatus(item.uiStatus)
+	if (normalized === "activity") return "activity"
 	if (isSnapshotAlarm(item)) return "alarm"
-	return normalizeSystemUiStatus(item.uiStatus)
+	return normalized
 }
 
 /** 保全活動資料來源（表單先選，再顯示對應綁定） */

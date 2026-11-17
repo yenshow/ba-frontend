@@ -62,20 +62,20 @@ export const ALERT_SOURCE_LABELS: Record<string, string> = {
 export const getSourceLabel = (source: AlertSource | string): string =>
 	ALERT_SOURCE_LABELS[source] ?? String(source)
 
+/** 標籤本身已含「系統」者不再加後綴，避免「保全系統系統」 */
 const ALERT_SOURCE_FILTER_SUFFIX_KEYS = new Set([
 	"device",
 	"environment",
 	"air_circulation",
 	"power",
 	"energy",
-	"fire",
 	"smoke_alarm",
 	"emergency_rescue",
-	"security",
 ])
 
 export const getAlertSourceFilterLabel = (source: string): string => {
 	const base = getSourceLabel(source)
+	if (/系統$/.test(base)) return base
 	return ALERT_SOURCE_FILTER_SUFFIX_KEYS.has(source) ? `${base}系統` : base
 }
 

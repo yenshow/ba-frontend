@@ -23,6 +23,15 @@
 							>
 								樓層管理
 							</PermissionActionButton>
+							<PermissionActionButton
+								:allowed="canManageSchedules ?? false"
+								aria-label="時間排程"
+								class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
+								@click="emit('open-schedule-management')"
+							>
+								時間排程
+							</PermissionActionButton>
+							<!-- 編輯定位置底：CategoryList absolute 下展才不會蓋住時間排程 -->
 							<div class="relative">
 								<PermissionActionButton
 									:allowed="canWrite"
@@ -61,14 +70,6 @@
 									/>
 								</Transition>
 							</div>
-							<PermissionActionButton
-								:allowed="canManageSchedules ?? false"
-								aria-label="時間排程"
-								class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
-								@click="emit('open-schedule-management')"
-							>
-								時間排程
-							</PermissionActionButton>
 						</div>
 					</Transition>
 				</div>

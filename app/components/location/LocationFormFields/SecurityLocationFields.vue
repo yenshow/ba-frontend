@@ -12,6 +12,19 @@
 			/>
 		</label>
 
+		<div
+			class="rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2.5 text-xs leading-relaxed text-white/80 2xl:text-sm"
+			role="note"
+		>
+			<p class="font-medium text-cyan-100">設定順序</p>
+			<ol class="mt-1.5 list-decimal space-y-1 pl-4 text-white/70">
+				<li>在此綁定資料來源後儲存地點</li>
+				<li v-if="usesDi">儲存後系統會自動建立「保全 DI」警報規則（可至警示紀錄 → 警報設定查看）</li>
+				<li v-else>門禁／讀卡活動由系統內建處理，不必另建 DI 規則</li>
+				<li>回到監控頁開啟「時間排程」並啟用時段（未啟用＝只顯示活動、不進警示）</li>
+			</ol>
+		</div>
+
 		<span class="text-sm font-medium text-white/80 2xl:text-base"
 			>資料來源<span class="required-mark">*</span></span
 		>
@@ -32,11 +45,17 @@
 			</label>
 		</div>
 		<p class="text-xs text-white/50 2xl:text-sm">
-			時段外活動才寫入警報紀錄；許可時段請於監控頁「許可時段」一次管理。
+			排程外＝警報（紅）；排程內＝活動（藍）並記營運事件。時間排程在監控頁一次管理。
 		</p>
 
 		<!-- DI：控制器／類型／地址同一列 -->
 		<div v-if="usesDi" class="mt-1 space-y-3 border-t border-white/10 pt-3">
+			<div
+				v-if="!isLoadingDevices && !hasControllerDevices"
+				:class="emptyHintClass"
+			>
+				請先在「設備管理」新增控制器（Modbus），再回此選擇
+			</div>
 			<div class="flex w-full min-w-0 flex-wrap items-end gap-3">
 				<label :class="[fieldLabelClass, 'min-w-[12rem] flex-1']">
 					<span>控制器<span class="required-mark">*</span></span>
@@ -194,13 +213,20 @@ const runningType = ref<DiDo>("DI")
 const usesDi = computed(() => securityDataSourceUsesDi(dataSource.value))
 const usesAccess = computed(() => securityDataSourceUsesAccess(dataSource.value))
 
+const controllerDevices = computed(() =>
+	props.devices.filter((d) => d.type_code === "controller" || !d.type_code),
+)
+const hasControllerDevices = computed(() => controllerDevices.value.length > 0)
+
 const deviceOptions = computed(() => {
 	if (props.isLoadingDevices) return [{ value: "", label: "載入中..." }]
-	const controllers = props.devices.filter((d) => d.type_code === "controller" || !d.type_code)
-	if (controllers.length === 0) return [{ value: "", label: "尚無可用控制器" }]
+	if (!hasControllerDevices.value) return [{ value: "", label: "尚無可用控制器" }]
 	return [
 		{ value: "", label: "請選擇控制器" },
-		...controllers.map((d) => ({ value: String(d.id), label: formatDeviceSelectLabel(d) })),
+		...controllerDevices.value.map((d) => ({
+			value: String(d.id),
+			label: formatDeviceSelectLabel(d),
+		})),
 	]
 })
 

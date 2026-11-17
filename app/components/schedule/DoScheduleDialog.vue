@@ -18,14 +18,24 @@
 						>
 							{{ title }}
 						</h3>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉對話框"
-							@click="handleClose"
-						>
-							&times;
-						</button>
+						<div class="flex items-center gap-3">
+							<FormChangeIndicator
+								v-if="hasUnsavedChanges"
+								:has-changes="hasUnsavedChanges"
+								:changed-fields="changedFieldsList"
+								:message="changeSummary"
+								:show-reset="true"
+								@reset="handleDiscard"
+							/>
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+								aria-label="關閉對話框"
+								@click="handleClose"
+							>
+								&times;
+							</button>
+						</div>
 					</header>
 
 					<div class="flex min-h-0 flex-1 flex-col overflow-hidden pr-7 2xl:pr-8">
@@ -33,9 +43,10 @@
 							{{ errorMessage }}
 						</p>
 						<p class="mb-3 text-xs leading-relaxed text-white/55 2xl:text-sm">
-							到{{ onTimeLabel }}／{{ offTimeLabel }}時刻各觸發一次 DO（不持續對齊）。一組規則可綁多個{{
-								systemNoun
-							}}地點；時區 Asia/Taipei。若{{ offTimeLabel }}落在隔日，請一併勾選當日的星期。手動開關可立即生效，下一個排程時刻會覆寫。
+							{{ onTimeLabel }}與{{ offTimeLabel }}為獨立到點觸發（各寫一次
+							DO，不持續對齊）；無先後限制（{{ onTimeLabel }}可比{{
+								offTimeLabel
+							}}晚）。一組規則可綁多個{{ systemNoun }}地點；時區 Asia/Taipei。跨日請一併勾選對應星期。手動開關可立即生效，下一個排程時刻會覆寫。
 						</p>
 
 						<div class="grid min-h-0 flex-1 grid-cols-12 gap-4 2xl:gap-5">
@@ -145,14 +156,13 @@
 												/>
 												啟用
 											</label>
-											<PermissionActionButton
+											<IconTrashButton
 												:allowed="canEdit"
-												class="shrink-0 rounded-md px-2 py-1 text-xs text-rose-300/90 transition-colors enabled:hover:bg-rose-500/15 enabled:hover:text-rose-200 2xl:text-sm"
+												size="sm"
+												title="移除規則"
 												:aria-label="`移除規則 ${selectedIdx + 1}`"
 												@click="handleRemoveRule(selectedIdx)"
-											>
-												移除
-											</PermissionActionButton>
+											/>
 										</div>
 
 										<div class="space-y-3 2xl:space-y-4">
@@ -182,7 +192,7 @@
 														<input
 															v-model="selectedRule.onTime"
 															type="time"
-															class="form-input-small w-full"
+															class="form-input-small w-full [color-scheme:dark]"
 															:aria-label="`規則 ${selectedIdx + 1} ${onTimeLabel}時刻`"
 															:disabled="!canEdit"
 														/>
@@ -194,7 +204,7 @@
 														<input
 															v-model="selectedRule.offTime"
 															type="time"
-															class="form-input-small w-full"
+															class="form-input-small w-full [color-scheme:dark]"
 															:aria-label="`規則 ${selectedIdx + 1} ${offTimeLabel}時刻`"
 															:disabled="!canEdit"
 														/>
@@ -345,7 +355,7 @@
 						<div class="flex-1"></div>
 						<PermissionActionButton
 							:allowed="canEdit"
-							:disabled="saving || loading"
+							:disabled="!hasUnsavedChanges || saving || loading"
 							aria-label="儲存時間排程"
 							class="btn-primary"
 							@click="handleSave"
@@ -357,12 +367,26 @@
 			</div>
 		</Transition>
 	</Teleport>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialog.config.value.title"
+		:message="confirmDialog.config.value.message"
+		:details="confirmDialog.config.value.details"
+		:type="confirmDialog.config.value.type"
+		@confirm="closeDialog"
+	/>
 </template>
 
 <script setup lang="ts">
 import { useToast } from "~/composables/core/useToast"
 import { TOAST } from "~/config/toastCatalog"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { FORM_UNSAVED_CLOSE_CONFIRM } from "~/utils/formDialog"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 
 export interface DoScheduleRule {
 	id?: number
@@ -437,6 +461,8 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = confirmDialog.showDialog
 
 const canEdit = computed(() => Boolean(props.canEdit))
 const title = computed(() => props.title)
@@ -457,10 +483,49 @@ const DOW_OPTIONS = [
 const ALL_DOW = DOW_OPTIONS.map((d) => d.value)
 
 const rules = ref<ScheduleDraft[]>([])
+const baselineRules = ref<ScheduleDraft[]>([])
 const selectedIdx = ref(0)
 const loading = ref(false)
 const saving = ref(false)
 const errorMessage = ref("")
+
+const cloneRules = (list: ScheduleDraft[]): ScheduleDraft[] =>
+	list.map((r) => ({
+		name: r.name,
+		daysOfWeek: [...r.daysOfWeek],
+		onTime: r.onTime,
+		offTime: r.offTime,
+		enabled: r.enabled,
+		locationIds: [...r.locationIds],
+	}))
+
+const rulesSignature = (list: ScheduleDraft[]) =>
+	JSON.stringify(
+		list.map((r) => ({
+			name: (r.name || "").trim(),
+			daysOfWeek: [...r.daysOfWeek].sort((a, b) => a - b),
+			onTime: r.onTime,
+			offTime: r.offTime,
+			enabled: r.enabled !== false,
+			locationIds: [...r.locationIds].sort((a, b) => a - b),
+		}))
+	)
+
+const hasUnsavedChanges = computed(
+	() => rulesSignature(rules.value) !== rulesSignature(baselineRules.value)
+)
+
+const changedFieldsList = computed(() =>
+	hasUnsavedChanges.value ? ["排程規則"] : []
+)
+
+const changeSummary = computed(() =>
+	hasUnsavedChanges.value ? "有未儲存的變更" : ""
+)
+
+const commitBaseline = () => {
+	baselineRules.value = cloneRules(rules.value)
+}
 
 const zoneGroups = computed((): ZoneGroup[] => {
 	const groups: ZoneGroup[] = []
@@ -513,16 +578,39 @@ const loadRules = async () => {
 		const res = await props.getSchedules()
 		rules.value = (res.rules || []).map(toDraft)
 		selectedIdx.value = rules.value.length > 0 ? 0 : -1
+		commitBaseline()
 	} catch (err: unknown) {
 		errorMessage.value = err instanceof Error ? err.message : "載入排程失敗"
 		rules.value = []
 		selectedIdx.value = -1
+		commitBaseline()
 	} finally {
 		loading.value = false
 	}
 }
 
-const handleClose = () => emit("update:modelValue", false)
+const closeDialog = () => {
+	errorMessage.value = ""
+	emit("update:modelValue", false)
+}
+
+const handleClose = () => {
+	if (hasUnsavedChanges.value) {
+		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
+		return
+	}
+	closeDialog()
+}
+
+const handleDiscard = () => {
+	rules.value = cloneRules(baselineRules.value)
+	if (rules.value.length === 0) {
+		selectedIdx.value = -1
+	} else if (selectedIdx.value < 0 || selectedIdx.value >= rules.value.length) {
+		selectedIdx.value = 0
+	}
+	errorMessage.value = ""
+}
 
 const handleAddRule = () => {
 	rules.value.push({
@@ -618,10 +706,10 @@ const handleSave = async () => {
 		if (selectedIdx.value >= rules.value.length) {
 			selectedIdx.value = rules.value.length > 0 ? 0 : -1
 		}
+		commitBaseline()
 		toast.success(TOAST.SETTINGS_SAVED)
 	} catch (err: unknown) {
 		errorMessage.value = err instanceof Error ? err.message : "儲存排程失敗"
-		toast.error(errorMessage.value)
 	} finally {
 		saving.value = false
 	}

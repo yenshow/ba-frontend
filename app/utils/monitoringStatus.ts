@@ -1,8 +1,8 @@
-export type MonitoringStatusText = "正常" | "異常" | "警報" | "離線"
+export type MonitoringStatusText = "正常" | "異常" | "警報" | "離線" | "活動"
 
-export type MonitoringUiStatus = "normal" | "warning" | "alarm" | "offline"
+export type MonitoringUiStatus = "normal" | "warning" | "alarm" | "offline" | "activity"
 
-export type SystemUiStatus = "normal" | "warning" | "alarm"
+export type SystemUiStatus = "normal" | "warning" | "alarm" | "activity"
 /** 平面圖 category-dot／location-dot 的 `data-status`，與 {@link SystemUiStatus} 一致 */
 export type MapDotStatus = SystemUiStatus
 export type LegacyHealthStatus = "normal" | "warning" | "error"
@@ -14,7 +14,16 @@ export const normalizeSystemUiStatus = (status: unknown): SystemUiStatus => {
 	if (normalized === "normal") return "normal"
 	if (normalized === "warning") return "warning"
 	if (normalized === "alarm") return "alarm"
+	if (normalized === "activity") return "activity"
 	return "warning"
+}
+
+/** 系統 uiStatus 顯示文案（含保全時間排程內「活動」） */
+export const systemUiStatusToText = (ui: SystemUiStatus): string => {
+	if (ui === "normal") return "正常"
+	if (ui === "alarm") return "警報"
+	if (ui === "activity") return "活動"
+	return "異常"
 }
 
 /** 後端 `/status` 單筆：與 alerts 合併後之頂層 uiStatus，以及 raw.runningAlarm 標記 */
@@ -39,6 +48,7 @@ export const isSnapshotUiNormal = (item: SnapshotAlarmCarrier): boolean =>
 
 export const systemUiStatusToLegacyHealthStatus = (status: SystemUiStatus): LegacyHealthStatus => {
 	if (status === "normal") return "normal"
+	if (status === "activity") return "normal"
 	if (status === "warning") return "warning"
 	return "error"
 }
@@ -49,6 +59,7 @@ export const normalizeMonitoringStatusText = (
 	const s = String(raw ?? "").trim()
 	if (s === "警報") return "警報"
 	if (s === "異常") return "異常"
+	if (s === "活動") return "活動"
 	if (s === "離線" || s === "無資料") return "離線"
 	return "正常"
 }
@@ -58,6 +69,7 @@ export const monitoringStatusTextToUiStatus = (
 ): MonitoringUiStatus => {
 	if (status === "警報") return "alarm"
 	if (status === "異常") return "warning"
+	if (status === "活動") return "activity"
 	if (status === "離線") return "offline"
 	return "normal"
 }
@@ -66,19 +78,21 @@ export const monitoringUiStatusToBlinkClass = (
 	ui: MonitoringUiStatus
 ): "" | "blink-slow" | "blink-fast" => {
 	if (ui === "alarm") return "blink-fast"
-	if (ui === "warning") return "blink-slow"
+	if (ui === "warning" || ui === "activity") return "blink-slow"
 	return ""
 }
 
 export const monitoringUiStatusToCardBackgroundClass = (ui: MonitoringUiStatus): string => {
 	if (ui === "alarm") return "bg-[#FF0000]/90"
 	if (ui === "warning") return "bg-[#FFC801]/90"
+	if (ui === "activity") return "bg-[#38BDF8]/60"
 	return "bg-white/10"
 }
 
 export const monitoringUiStatusToDotColor = (ui: MonitoringUiStatus): string => {
 	if (ui === "alarm") return "#FF0000"
 	if (ui === "warning") return "#FFC701"
+	if (ui === "activity") return "#38BDF8"
 	if (ui === "normal") return "#00FFB5"
 	return "#9CA3AF"
 }
@@ -86,6 +100,7 @@ export const monitoringUiStatusToDotColor = (ui: MonitoringUiStatus): string => 
 export const monitoringUiStatusToText = (ui: MonitoringUiStatus): MonitoringStatusText => {
 	if (ui === "alarm") return "警報"
 	if (ui === "warning") return "異常"
+	if (ui === "activity") return "活動"
 	if (ui === "offline") return "離線"
 	return "正常"
 }
@@ -95,5 +110,6 @@ export const monitoringUiStatusToDotClass = (ui: MonitoringUiStatus): string => 
 	if (ui === "normal") return "bg-emerald-500"
 	if (ui === "offline") return "bg-black/25"
 	if (ui === "warning") return "bg-amber-500"
+	if (ui === "activity") return "bg-sky-400"
 	return "bg-rose-500"
 }
