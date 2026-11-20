@@ -126,6 +126,7 @@
 										:key="zone.id"
 										:zone="zone"
 										:stations="mainStations"
+										:selected="selectedZoneId === zone.id"
 										:class="{
 											'ring-2 ring-cyan-400': selectedZoneId === zone.id,
 										}"

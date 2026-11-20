@@ -33,6 +33,9 @@ export const deriveSecurityUiStatus = (
 /** 保全活動資料來源（表單先選，再顯示對應綁定） */
 export type SecurityDataSource = "di" | "access_control" | "both"
 
+/** 防區佈防模式（掛在地點；≠ 梯控／對講 ISAPI 佈防訂閱） */
+export type SecurityArmingMode = "immediate" | "delay" | "twenty_four_hour"
+
 export interface SecurityLocation {
 	id?: string
 	systemId?: string
@@ -50,6 +53,12 @@ export interface SecurityLocation {
 	statusPoints?: Record<string, ModbusStatusPointDef>
 	/** 門禁機／讀卡機 device id 列表 */
 	accessDeviceIds?: number[]
+	/** 佈防模式；預設 immediate */
+	armingMode?: SecurityArmingMode
+	/** 進入延遲秒數（僅 delay） */
+	entryDelaySec?: number
+	/** 離開延遲秒數（僅 delay） */
+	exitDelaySec?: number
 }
 
 export interface SecurityZone {

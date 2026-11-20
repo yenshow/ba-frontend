@@ -12,17 +12,44 @@
 			/>
 		</label>
 
+		<label :class="fieldLabelClass">
+			<span>佈防模式<span class="required-mark">*</span></span>
+			<FilterDropdown
+				v-model="armingMode"
+				:options="ARMING_MODE_OPTIONS"
+				placeholder="請選擇佈防模式"
+				@update:modelValue="handleArmingModeChange"
+			/>
+		</label>
+
 		<div
-			class="rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2.5 text-xs leading-relaxed text-white/80 2xl:text-sm"
-			role="note"
+			v-if="armingMode === 'delay'"
+			class="grid grid-cols-1 gap-3 sm:grid-cols-2"
 		>
-			<p class="font-medium text-cyan-100">設定順序</p>
-			<ol class="mt-1.5 list-decimal space-y-1 pl-4 text-white/70">
-				<li>在此綁定資料來源後儲存地點</li>
-				<li v-if="usesDi">儲存後系統會自動建立「保全 DI」警報規則（可至警示紀錄 → 警報設定查看）</li>
-				<li v-else>門禁／讀卡活動由系統內建處理，不必另建 DI 規則</li>
-				<li>回到監控頁開啟「時間排程」並啟用時段（未啟用＝只顯示活動、不進警示）</li>
-			</ol>
+			<label :class="fieldLabelClass">
+				<span>進入延遲（秒）</span>
+				<input
+					v-model.number="entryDelaySec"
+					type="number"
+					min="0"
+					max="300"
+					class="form-input-small"
+					aria-label="進入延遲秒數"
+					@blur="handleChange"
+				/>
+			</label>
+			<label :class="fieldLabelClass">
+				<span>離開延遲（秒）</span>
+				<input
+					v-model.number="exitDelaySec"
+					type="number"
+					min="0"
+					max="600"
+					class="form-input-small"
+					aria-label="離開延遲秒數"
+					@blur="handleChange"
+				/>
+			</label>
 		</div>
 
 		<span class="text-sm font-medium text-white/80 2xl:text-base"
@@ -44,10 +71,6 @@
 				<span class="text-sm text-white/90 2xl:text-base">{{ opt.label }}</span>
 			</label>
 		</div>
-		<p class="text-xs text-white/50 2xl:text-sm">
-			排程外＝警報（紅）；排程內＝活動（藍）並記營運事件。時間排程在監控頁一次管理。
-		</p>
-
 		<!-- DI：控制器／類型／地址同一列 -->
 		<div v-if="usesDi" class="mt-1 space-y-3 border-t border-white/10 pt-3">
 			<div
@@ -153,7 +176,11 @@
 <script setup lang="ts">
 import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import { ref, watch, computed } from "vue"
-import type { SecurityDataSource, SecurityLocation } from "~/types/security"
+import type {
+	SecurityArmingMode,
+	SecurityDataSource,
+	SecurityLocation,
+} from "~/types/security"
 import type { Device } from "~/types/device"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import type { ModbusStatusPointDef } from "~/types/location"
@@ -204,8 +231,23 @@ const DATA_SOURCE_OPTIONS: Array<{ value: SecurityDataSource; label: string }> =
 	{ value: "both", label: SECURITY_DATA_SOURCE_LABELS.both },
 ]
 
+const ARMING_MODE_OPTIONS = [
+	{ value: "immediate", label: "立即佈防" },
+	{ value: "delay", label: "延遲佈防" },
+	{ value: "twenty_four_hour", label: "24 小時佈防" },
+]
+
+const resolveArmingMode = (loc: SecurityLocation): SecurityArmingMode => {
+	const m = String(loc.armingMode || "immediate")
+	if (m === "delay" || m === "twenty_four_hour") return m
+	return "immediate"
+}
+
 const localLocation = ref<SecurityLocation>({ ...props.location })
 const dataSource = ref<SecurityDataSource>(resolveSecurityDataSource(props.location))
+const armingMode = ref<SecurityArmingMode>(resolveArmingMode(props.location))
+const entryDelaySec = ref(Number(props.location.entryDelaySec ?? 30))
+const exitDelaySec = ref(Number(props.location.exitDelaySec ?? 60))
 const deviceIdString = ref("")
 const runningAddress = ref(0)
 const runningType = ref<DiDo>("DI")
@@ -299,15 +341,28 @@ watch(
 	(next) => {
 		localLocation.value = { ...next, accessDeviceIds: [...(next.accessDeviceIds || [])] }
 		dataSource.value = resolveSecurityDataSource(next)
+		armingMode.value = resolveArmingMode(next)
+		entryDelaySec.value = Number(next.entryDelaySec ?? 30)
+		exitDelaySec.value = Number(next.exitDelaySec ?? 60)
 		syncDiFieldsFromLocation(localLocation.value)
 	},
 	{ immediate: true, deep: true }
 )
 
+const handleArmingModeChange = (value: string) => {
+	armingMode.value = resolveArmingMode({
+		armingMode: value as SecurityArmingMode,
+	} as SecurityLocation)
+	handleChange()
+}
+
 const handleChange = () => {
 	const next: SecurityLocation = {
 		...localLocation.value,
 		dataSource: dataSource.value,
+		armingMode: armingMode.value,
+		entryDelaySec: Math.min(300, Math.max(0, Math.floor(Number(entryDelaySec.value) || 0))),
+		exitDelaySec: Math.min(600, Math.max(0, Math.floor(Number(exitDelaySec.value) || 0))),
 	}
 
 	if (usesDi.value && next.deviceId && next.deviceId > 0) {

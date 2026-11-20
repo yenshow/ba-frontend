@@ -12,7 +12,7 @@
 			class="show-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto ps-3 pe-1 pt-2 2xl:mt-8 2xl:space-y-8"
 		>
 		<div v-for="zone in displayedZones" :key="zone.id || zone.name" class="space-y-3 2xl:space-y-4">
-			<div class="flex items-center justify-start gap-3">
+			<div class="flex items-start justify-start gap-3">
 				<div class="relative shrink-0">
 					<button
 						type="button"
@@ -52,47 +52,55 @@
 					</span>
 				</div>
 
-				<div
-					v-if="locationsForZone(zone).length > 0"
-					class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2"
+				<template
+					v-for="locView in [locationViewForZone(zone)]"
+					:key="`${zone.id || zone.name}-locs`"
 				>
 					<div
-						v-for="row in locationsForZone(zone)"
-						:key="row.rowKey"
-						class="flex min-w-0 flex-col rounded-xl border-2 border-white px-3 py-2"
-						:class="[
-							locationRowBackgroundClass(zone, row.loc),
-							locationRowFlashClass(zone, row.loc),
-						]"
+						v-if="locView.visible.length > 0"
+						class="flex min-w-0 flex-1 items-start gap-1"
 					>
-						<div class="flex min-w-0 items-center gap-3 py-2">
-							<div class="shrink-0">
-								<SosIcon
-									:aria-label="`${row.loc.name} 緊急求救設備圖示`"
-									root-class="h-16 w-16 text-white 2xl:h-24 2xl:w-24"
-									:animate="rowUiStatus(row.loc) === 'alarm'"
-								/>
-							</div>
-							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
-								<h4 class="truncate text-center text-lg text-white 2xl:text-xl">
-									{{ row.loc.name }}
-								</h4>
-								<div
-									class="flex items-center justify-center gap-2 rounded-full border border-white bg-white/10 mx-1 py-2"
-								>
-									<span
-										class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
-										:class="statusDotClass(rowUiStatus(row.loc))"
-										aria-hidden="true"
-									/>
-									<span class="text-sm text-white 2xl:text-base">
-										{{ statusLabel(rowUiStatus(row.loc)) }}
-									</span>
+						<div class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+							<div
+								v-for="row in locView.visible"
+								:key="row.rowKey"
+								class="flex min-w-0 flex-col rounded-xl border-2 border-white px-3 py-2"
+								:class="[
+									locationRowBackgroundClass(zone, row.loc),
+									locationRowFlashClass(zone, row.loc),
+								]"
+							>
+								<div class="flex min-w-0 items-center gap-3 py-2">
+									<div class="shrink-0">
+										<SosIcon
+											:aria-label="`${row.loc.name} 緊急求救設備圖示`"
+											root-class="h-16 w-16 text-white 2xl:h-24 2xl:w-24"
+											:animate="rowUiStatus(row.loc) === 'alarm'"
+										/>
+									</div>
+									<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
+										<h4 class="truncate text-center text-lg text-white 2xl:text-xl">
+											{{ row.loc.name }}
+										</h4>
+										<div
+											class="flex items-center justify-center gap-2 rounded-full border border-white bg-white/10 mx-1 py-2"
+										>
+											<span
+												class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
+												:class="statusDotClass(rowUiStatus(row.loc))"
+												aria-hidden="true"
+											/>
+											<span class="text-sm text-white 2xl:text-base">
+												{{ statusLabel(rowUiStatus(row.loc)) }}
+											</span>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
+						<StatusCenterCollapsedMore :show="locView.hiddenCount > 0" />
 					</div>
-				</div>
+				</template>
 			</div>
 		</div>
 
@@ -110,6 +118,7 @@
 
 <script setup lang="ts">
 import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
+import StatusCenterCollapsedMore from "~/components/common/StatusCenterCollapsedMore.vue"
 import SosIcon from "~/components/emergency-rescue/SosIcon.vue"
 import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import type {
@@ -118,6 +127,11 @@ import type {
 	EmergencyRescueStatusItem,
 } from "~/types/emergency-rescue"
 import { deriveEmergencyRescueUiStatus } from "~/types/emergency-rescue"
+import {
+	compareMonitorLocationPriority,
+	monitorUiSeverityRank,
+	viewCollapsedZoneLocations,
+} from "~/utils/toggleStatusCenterOrder"
 import { compareZonesLoose } from "~/utils/sortOrder"
 
 const props = defineProps<{
@@ -155,23 +169,6 @@ const itemBySystemId = computed(() => {
 const rowKey = (zone: EmergencyRescueZone, loc: EmergencyRescueLocation, index: number): string =>
 	loc.id || `location-${zone.id || zone.name}-${index}`
 
-const locationsForZone = (
-	zone: EmergencyRescueZone
-): { loc: EmergencyRescueLocation; rowKey: string }[] => {
-	const list = zone.locations || []
-	const out: { loc: EmergencyRescueLocation; rowKey: string }[] = []
-	list.forEach((loc, index) => {
-		out.push({ loc, rowKey: rowKey(zone, loc, index) })
-	})
-	return out
-}
-
-const displayedZones = computed(() => {
-	if (!props.zones?.length) return []
-	const sorted = [...props.zones].sort((a, b) => compareZonesLoose(a, b))
-	return sorted.filter((zone) => locationsForZone(zone).length > 0)
-})
-
 const getItemForLocation = (loc: EmergencyRescueLocation): EmergencyRescueStatusItem | null => {
 	if (!loc.systemId) return null
 	return itemBySystemId.value.get(String(loc.systemId)) ?? null
@@ -179,6 +176,41 @@ const getItemForLocation = (loc: EmergencyRescueLocation): EmergencyRescueStatus
 
 const rowUiStatus = (loc: EmergencyRescueLocation): EmergencyRescueStatusItem["uiStatus"] =>
 	deriveEmergencyRescueUiStatus(getItemForLocation(loc))
+
+const locationsForZone = (
+	zone: EmergencyRescueZone
+): { loc: EmergencyRescueLocation; rowKey: string; index: number }[] => {
+	const list = zone.locations || []
+	const out = list.map((loc, index) => ({
+		loc,
+		rowKey: rowKey(zone, loc, index),
+		index,
+	}))
+	return [...out].sort((a, b) =>
+		compareMonitorLocationPriority(
+			{
+				severityRank: monitorUiSeverityRank(rowUiStatus(a.loc)),
+				index: a.index,
+			},
+			{
+				severityRank: monitorUiSeverityRank(rowUiStatus(b.loc)),
+				index: b.index,
+			}
+		)
+	)
+}
+
+const isZoneExpanded = (zone: EmergencyRescueZone): boolean =>
+	props.selectedZone === (zone.id || zone.name)
+
+const locationViewForZone = (zone: EmergencyRescueZone) =>
+	viewCollapsedZoneLocations(locationsForZone(zone), isZoneExpanded(zone))
+
+const displayedZones = computed(() => {
+	if (!props.zones?.length) return []
+	const sorted = [...props.zones].sort((a, b) => compareZonesLoose(a, b))
+	return sorted.filter((zone) => locationsForZone(zone).length > 0)
+})
 
 const statusLabel = (s: EmergencyRescueStatusItem["uiStatus"]) => {
 	if (s === "normal") return "正常"

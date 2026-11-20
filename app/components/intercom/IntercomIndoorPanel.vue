@@ -142,7 +142,24 @@ const resolveIndoorStatus = (locationId: number) => {
 const selectedFloor = ref("")
 const pageOffset = ref(0)
 
-const groupedFloors = computed(() => groupIntercomLocationsByFloor(props.locations))
+const isBusyLocation = (locationId: number): boolean =>
+	locationId === props.ringingLocationId || locationId === props.talkingLocationId
+
+/** 通話／廣播中 → 未綁定 → 已綁定 */
+const groupedFloors = computed(() =>
+	groupIntercomLocationsByFloor(props.locations).map((group) => ({
+		...group,
+		locations: [...group.locations].sort((a, b) => {
+			const aBusy = isBusyLocation(a.id) ? 0 : 1
+			const bBusy = isBusyLocation(b.id) ? 0 : 1
+			if (aBusy !== bBusy) return aBusy - bBusy
+			const aBound = Boolean(a.indoorDeviceId)
+			const bBound = Boolean(b.indoorDeviceId)
+			if (aBound !== bBound) return aBound ? 1 : -1
+			return 0
+		}),
+	}))
+)
 
 const floorLocations = computed(
 	() =>

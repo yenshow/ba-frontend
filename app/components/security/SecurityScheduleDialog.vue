@@ -39,13 +39,6 @@
 					</header>
 
 					<div class="flex min-h-0 flex-1 flex-col overflow-hidden pr-7 2xl:pr-8">
-						<div
-							class="mb-3 rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2.5 text-xs leading-relaxed text-white/75 2xl:text-sm"
-							role="note"
-						>
-							<span class="font-medium text-cyan-100">如何生效：</span>
-							為點位新增時段並勾選「啟用」後儲存。啟用時段內＝活動（不進警示）；時段外＝警報。未設或未啟用＝只顯示活動。DI 地點需已有警報規則（儲存地點時通常已自動建立）。
-						</div>
 						<p v-if="errorMessage" class="mb-3 form-error-text-lg" role="alert">
 							{{ errorMessage }}
 						</p>
@@ -60,43 +53,52 @@
 									<div
 										class="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5 2xl:px-4"
 									>
-										<span class="text-sm font-medium text-white/85 2xl:text-base">點位</span>
+										<span class="text-sm font-medium text-white/85 2xl:text-base">規則</span>
+										<PermissionActionButton
+											:allowed="canEdit"
+											class="rounded-md px-2 py-1 text-xs text-cyan-100/90 transition-colors enabled:hover:bg-cyan-500/15 2xl:text-sm"
+											aria-label="新增排程規則"
+											@click="handleAddRule"
+										>
+											＋ 新增
+										</PermissionActionButton>
 									</div>
 									<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-2.5 2xl:p-3">
+										<p v-if="loading" class="py-6 text-center text-sm text-white/60">載入中…</p>
 										<div
-											v-if="zoneGroups.length === 0"
+											v-else-if="rules.length === 0"
 											class="py-10 text-center text-sm text-white/60 2xl:text-base"
 										>
-											尚無保全點位，請先於樓層管理新增並儲存
+											尚無排程規則
 										</div>
-										<ul v-else class="space-y-2.5" role="tree" aria-label="保全點位列表">
-											<li
-												v-for="group in zoneGroups"
-												:key="group.zoneKey"
-												class="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
-												role="treeitem"
-												:aria-expanded="true"
-											>
-												<div class="px-3 py-2 text-xs font-medium text-white/55 2xl:text-sm">
-													{{ group.zoneName }}
-												</div>
-												<ul class="space-y-1 px-2 pb-2" role="group">
-													<li v-for="row in group.locations" :key="row.key">
-														<button
-															type="button"
-															class="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm transition-colors 2xl:text-base"
-															:class="
-																selectedKey === row.key
-																	? 'bg-cyan-500/25 text-white ring-1 ring-cyan-400/35'
-																	: 'text-white/80 hover:bg-white/10'
-															"
-															:aria-current="selectedKey === row.key ? 'true' : undefined"
-															@click="handleSelectLocation(row)"
-														>
-															{{ row.locationName }}
-														</button>
-													</li>
-												</ul>
+										<ul v-else class="space-y-1" role="listbox" aria-label="保全排程規則列表">
+											<li v-for="(rule, idx) in rules" :key="`rule-nav-${idx}`">
+												<button
+													type="button"
+													class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors 2xl:text-base"
+													:class="
+														selectedIdx === idx
+															? 'bg-cyan-500/25 text-white ring-1 ring-cyan-400/35'
+															: 'text-white/80 hover:bg-white/10'
+													"
+													:aria-selected="selectedIdx === idx"
+													@click="selectedIdx = idx"
+												>
+													<span
+														class="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-cyan-500/20 px-1.5 text-xs font-medium text-cyan-100"
+													>
+														{{ idx + 1 }}
+													</span>
+													<span class="min-w-0 flex-1 truncate">
+														{{ rule.name?.trim() || `規則 ${idx + 1}` }}
+													</span>
+													<span
+														v-if="!rule.enabled"
+														class="shrink-0 text-xs text-white/40"
+													>
+														停用
+													</span>
+												</button>
 											</li>
 										</ul>
 									</div>
@@ -109,203 +111,230 @@
 							>
 								<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-4 2xl:p-5">
 									<div
-										v-if="!selectedRow"
+										v-if="!selectedRule"
 										class="flex min-h-[12rem] flex-col items-center justify-center rounded-lg border border-dashed border-white/20 bg-white/[0.04] px-4 py-8 text-center"
 									>
 										<p class="text-sm font-medium text-white/85 2xl:text-base">
-											請從左側選擇點位
+											請新增或選擇規則
 										</p>
 										<p class="mt-1 text-xs text-white/55 2xl:text-sm">
-											選取後即可編輯該點時間排程
+											設定許可時段、適用星期與綁定保全地點
 										</p>
+										<PermissionActionButton
+											:allowed="canEdit"
+											class="btn-secondary mt-4 px-3 py-1.5 text-sm"
+											aria-label="新增排程規則"
+											@click="handleAddRule"
+										>
+											＋ 新增規則
+										</PermissionActionButton>
 									</div>
 
 									<template v-else>
-										<div class="mb-3 space-y-1">
-											<h4 class="text-base font-medium text-white 2xl:text-lg">
-												{{ selectedLabel }}
+										<div
+											class="mb-3 flex items-center gap-3"
+											:class="selectedRule.enabled ? '' : 'opacity-60'"
+										>
+											<h4 class="min-w-0 flex-1 truncate text-base font-medium text-white 2xl:text-lg">
+												{{ selectedRule.name?.trim() || `規則 ${selectedIdx + 1}` }}
 											</h4>
-											<p class="text-xs leading-relaxed text-white/55 2xl:text-sm">
-												時段內不告警；時段外活動寫入警報。可跨日（如 22:00–06:00）。無規則＝不依時段告警。
-											</p>
+											<label
+												class="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-white/75 2xl:text-sm"
+											>
+												<input
+													v-model="selectedRule.enabled"
+													type="checkbox"
+													class="h-3.5 w-3.5 accent-cyan-400"
+													:disabled="!canEdit"
+													:aria-label="`啟用規則 ${selectedIdx + 1}`"
+												/>
+												啟用
+											</label>
+											<IconTrashButton
+												:allowed="canEdit"
+												size="sm"
+												title="移除規則"
+												:aria-label="`移除規則 ${selectedIdx + 1}`"
+												@click="handleRemoveRule(selectedIdx)"
+											/>
 										</div>
 
-										<p v-if="loading" class="text-sm text-white/60 2xl:text-base">載入中…</p>
-
-										<div v-else class="space-y-3">
-											<div
-												v-for="(rule, idx) in rules"
-												:key="`rule-${idx}`"
-												class="overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]"
-												:class="rule.enabled ? '' : 'opacity-60'"
-											>
-												<div
-													class="flex items-center gap-3 border-b border-white/10 bg-white/[0.03] px-3 py-2 2xl:px-4"
+										<div class="space-y-3 2xl:space-y-4">
+											<div class="grid grid-cols-1 gap-3 sm:grid-cols-12">
+												<label
+													class="flex min-w-0 flex-col gap-1.5 text-sm text-white/80 sm:col-span-5 2xl:text-base"
 												>
-													<span
-														class="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-cyan-500/20 px-1.5 text-xs font-medium text-cyan-100"
-													>
-														{{ idx + 1 }}
-													</span>
-													<span
-														class="min-w-0 flex-1 truncate text-sm text-white/85 2xl:text-base"
-													>
-														{{ rule.name?.trim() || `時段 ${idx + 1}` }}
-													</span>
-													<label
-														class="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-white/75 2xl:text-sm"
-													>
-														<input
-															v-model="rule.enabled"
-															type="checkbox"
-															class="h-3.5 w-3.5 accent-cyan-400"
-															:disabled="!canEdit"
-															:aria-label="`啟用時段 ${idx + 1}`"
-														/>
-														啟用
-													</label>
-													<IconTrashButton
-														:allowed="canEdit"
-														size="sm"
-														title="移除時段"
-														:aria-label="`移除時段 ${idx + 1}`"
-														@click="handleRemoveRule(idx)"
+													<span>名稱</span>
+													<input
+														v-model="selectedRule.name"
+														type="text"
+														class="form-input-small"
+														placeholder="選填，例如：平日白天"
+														:disabled="!canEdit"
+														:aria-label="`規則 ${selectedIdx + 1} 名稱`"
 													/>
-												</div>
-
-												<div class="space-y-3 p-3 2xl:space-y-4 2xl:p-4">
-													<div class="grid grid-cols-1 gap-3 sm:grid-cols-12">
-														<label
-															class="flex min-w-0 flex-col gap-1.5 text-sm text-white/80 sm:col-span-5 2xl:text-base"
-														>
-															<span>名稱</span>
-															<input
-																v-model="rule.name"
-																type="text"
-																class="form-input-small"
-																placeholder="選填，例如：平日白天"
-																:disabled="!canEdit"
-																:aria-label="`時段 ${idx + 1} 名稱`"
-															/>
-														</label>
-														<div
-															class="grid grid-cols-2 gap-3 sm:col-span-7"
-															role="group"
-															:aria-label="`時段 ${idx + 1} 時間範圍`"
-														>
-															<label
-																class="flex min-w-0 flex-col gap-1.5 text-sm text-white/80 2xl:text-base"
-															>
-																<span>開始<span class="required-mark">*</span></span>
-																<input
-																	v-model="rule.windowStart"
-																	type="time"
-																	class="form-input-small w-full [color-scheme:dark]"
-																	:aria-label="`時段 ${idx + 1} 開始時間`"
-																	:disabled="!canEdit"
-																/>
-															</label>
-															<label
-																class="flex min-w-0 flex-col gap-1.5 text-sm text-white/80 2xl:text-base"
-															>
-																<span>結束<span class="required-mark">*</span></span>
-																<input
-																	v-model="rule.windowEnd"
-																	type="time"
-																	class="form-input-small w-full [color-scheme:dark]"
-																	:aria-label="`時段 ${idx + 1} 結束時間`"
-																	:disabled="!canEdit"
-																/>
-															</label>
-														</div>
-													</div>
-
-													<div class="space-y-1.5">
-														<div class="flex items-center justify-between gap-2">
-															<span class="text-sm text-white/80 2xl:text-base">適用星期</span>
-															<div class="flex gap-2 text-xs 2xl:text-sm">
-																<button
-																	type="button"
-																	class="text-cyan-200/80 underline-offset-2 transition-colors hover:text-cyan-100 hover:underline disabled:opacity-40"
-																	:disabled="!canEdit"
-																	:aria-label="`時段 ${idx + 1} 全選星期`"
-																	@click="handleSetAllDow(idx, true)"
-																>
-																	全選
-																</button>
-																<button
-																	type="button"
-																	class="text-white/45 underline-offset-2 transition-colors hover:text-white/70 hover:underline disabled:opacity-40"
-																	:disabled="!canEdit"
-																	:aria-label="`時段 ${idx + 1} 清除星期`"
-																	@click="handleSetAllDow(idx, false)"
-																>
-																	清除
-																</button>
-															</div>
-														</div>
-														<div
-															class="grid grid-cols-7 gap-1.5"
-															role="group"
-															:aria-label="`時段 ${idx + 1} 適用星期`"
-														>
-															<button
-																v-for="d in DOW_OPTIONS"
-																:key="d.value"
-																type="button"
-																class="rounded-lg border px-1 py-2 text-center text-xs transition-colors 2xl:text-sm"
-																:class="
-																	rule.daysOfWeek.includes(d.value)
-																		? 'border-cyan-400/55 bg-cyan-500/25 font-medium text-white'
-																		: 'border-white/10 bg-white/[0.03] text-white/55 hover:bg-white/10 hover:text-white/80'
-																"
-																:aria-pressed="rule.daysOfWeek.includes(d.value)"
-																:disabled="!canEdit"
-																:aria-label="`時段 ${idx + 1} 星期${d.label}`"
-																@click="
-																	handleToggleDow(
-																		idx,
-																		d.value,
-																		!rule.daysOfWeek.includes(d.value)
-																	)
-																"
-															>
-																{{ d.label }}
-															</button>
-														</div>
-													</div>
-												</div>
-											</div>
-
-											<div
-												v-if="rules.length === 0"
-												class="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/[0.03] px-4 py-10 text-center"
-											>
-												<p class="text-sm font-medium text-white/75 2xl:text-base">
-													尚無時段規則
-												</p>
-												<p class="mt-1 text-xs text-white/45 2xl:text-sm">
-													未設定時不依時段告警；新增後僅時段外活動會寫入警報
-												</p>
-												<PermissionActionButton
-													:allowed="canEdit"
-													class="btn-secondary mt-4 px-3 py-1.5 text-sm"
-													aria-label="新增時段"
-													@click="handleAddRule"
+												</label>
+												<div
+													class="grid grid-cols-2 gap-3 sm:col-span-7"
+													role="group"
+													:aria-label="`規則 ${selectedIdx + 1} 時間範圍`"
 												>
-													＋ 新增時段
-												</PermissionActionButton>
+													<label
+														class="flex min-w-0 flex-col gap-1.5 text-sm text-white/80 2xl:text-base"
+													>
+														<span>開始<span class="required-mark">*</span></span>
+														<input
+															v-model="selectedRule.windowStart"
+															type="time"
+															class="form-input-small w-full [color-scheme:dark]"
+															:aria-label="`規則 ${selectedIdx + 1} 開始時間`"
+															:disabled="!canEdit"
+														/>
+													</label>
+													<label
+														class="flex min-w-0 flex-col gap-1.5 text-sm text-white/80 2xl:text-base"
+													>
+														<span>結束<span class="required-mark">*</span></span>
+														<input
+															v-model="selectedRule.windowEnd"
+															type="time"
+															class="form-input-small w-full [color-scheme:dark]"
+															:aria-label="`規則 ${selectedIdx + 1} 結束時間`"
+															:disabled="!canEdit"
+														/>
+													</label>
+												</div>
 											</div>
 
-											<PermissionActionButton
-												v-if="rules.length > 0"
-												:allowed="canEdit"
-												class="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-white/20 bg-white/[0.02] px-3 py-2.5 text-sm text-cyan-100/90 transition-colors enabled:hover:border-cyan-400/40 enabled:hover:bg-cyan-500/10 2xl:text-base"
-												aria-label="新增時段"
-												@click="handleAddRule"
-											>
-												＋ 新增時段
-											</PermissionActionButton>
+											<div class="space-y-1.5">
+												<div class="flex items-center justify-between gap-2">
+													<span class="text-sm text-white/80 2xl:text-base">適用星期</span>
+													<div class="flex gap-2 text-xs 2xl:text-sm">
+														<button
+															type="button"
+															class="text-cyan-200/80 underline-offset-2 transition-colors hover:text-cyan-100 hover:underline disabled:opacity-40"
+															:disabled="!canEdit"
+															:aria-label="`規則 ${selectedIdx + 1} 全選星期`"
+															@click="handleSetAllDow(selectedIdx, true)"
+														>
+															全選
+														</button>
+														<button
+															type="button"
+															class="text-white/45 underline-offset-2 transition-colors hover:text-white/70 hover:underline disabled:opacity-40"
+															:disabled="!canEdit"
+															:aria-label="`規則 ${selectedIdx + 1} 清除星期`"
+															@click="handleSetAllDow(selectedIdx, false)"
+														>
+															清除
+														</button>
+													</div>
+												</div>
+												<div
+													class="grid grid-cols-7 gap-1.5"
+													role="group"
+													:aria-label="`規則 ${selectedIdx + 1} 適用星期`"
+												>
+													<button
+														v-for="d in DOW_OPTIONS"
+														:key="d.value"
+														type="button"
+														class="rounded-lg border px-1 py-2 text-center text-xs transition-colors 2xl:text-sm"
+														:class="
+															selectedRule.daysOfWeek.includes(d.value)
+																? 'border-cyan-400/55 bg-cyan-500/25 font-medium text-white'
+																: 'border-white/10 bg-white/[0.03] text-white/55 hover:bg-white/10 hover:text-white/80'
+														"
+														:aria-pressed="selectedRule.daysOfWeek.includes(d.value)"
+														:disabled="!canEdit"
+														:aria-label="`規則 ${selectedIdx + 1} 星期${d.label}`"
+														@click="
+															handleToggleDow(
+																selectedIdx,
+																d.value,
+																!selectedRule.daysOfWeek.includes(d.value)
+															)
+														"
+													>
+														{{ d.label }}
+													</button>
+												</div>
+											</div>
+
+											<div class="space-y-1.5">
+												<div class="flex items-center justify-between gap-2">
+													<span class="text-sm text-white/80 2xl:text-base">
+														綁定保全地點<span class="required-mark">*</span>
+													</span>
+													<div class="flex gap-2 text-xs 2xl:text-sm">
+														<button
+															type="button"
+															class="text-cyan-200/80 underline-offset-2 transition-colors hover:text-cyan-100 hover:underline disabled:opacity-40"
+															:disabled="!canEdit || locationRows.length === 0"
+															:aria-label="`規則 ${selectedIdx + 1} 全選地點`"
+															@click="handleSetAllLocations(selectedIdx, true)"
+														>
+															全選
+														</button>
+														<button
+															type="button"
+															class="text-white/45 underline-offset-2 transition-colors hover:text-white/70 hover:underline disabled:opacity-40"
+															:disabled="!canEdit"
+															:aria-label="`規則 ${selectedIdx + 1} 清除地點`"
+															@click="handleSetAllLocations(selectedIdx, false)"
+														>
+															清除
+														</button>
+													</div>
+												</div>
+												<div
+													v-if="zoneGroups.length === 0"
+													class="rounded-lg border border-dashed border-white/15 px-3 py-6 text-center text-xs text-white/50 2xl:text-sm"
+												>
+													尚無保全地點，請先於樓層管理新增並儲存
+												</div>
+												<div
+													v-else
+													class="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-2 show-scrollbar"
+													role="group"
+													:aria-label="`規則 ${selectedIdx + 1} 綁定地點`"
+												>
+													<div
+														v-for="group in zoneGroups"
+														:key="group.zoneKey"
+														class="overflow-hidden rounded-lg border border-white/10"
+													>
+														<div class="px-3 py-1.5 text-xs font-medium text-white/55 2xl:text-sm">
+															{{ group.zoneName }}
+														</div>
+														<ul class="space-y-0.5 px-2 pb-2">
+															<li v-for="row in group.locations" :key="row.locationId">
+																<label
+																	class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 2xl:text-base"
+																>
+																	<input
+																		type="checkbox"
+																		class="h-3.5 w-3.5 accent-cyan-400"
+																		:checked="
+																			selectedRule.locationIds.includes(row.locationId)
+																		"
+																		:disabled="!canEdit"
+																		:aria-label="`${group.zoneName}／${row.locationName}`"
+																		@change="
+																			handleToggleLocation(
+																				selectedIdx,
+																				row.locationId,
+																				($event.target as HTMLInputElement).checked
+																			)
+																		"
+																	/>
+																	<span class="truncate">{{ row.locationName }}</span>
+																</label>
+															</li>
+														</ul>
+													</div>
+												</div>
+											</div>
 										</div>
 									</template>
 								</div>
@@ -319,13 +348,13 @@
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<PermissionActionButton
-							:allowed="canEdit && !!selectedRow"
-							:disabled="!hasUnsavedChanges || saving || loading || !selectedRow"
-							aria-label="儲存時段"
+							:allowed="canEdit"
+							:disabled="!hasUnsavedChanges || saving || loading"
+							aria-label="儲存時間排程"
 							class="btn-primary"
 							@click="handleSave"
 						>
-							{{ saving ? "儲存中…" : "儲存時段" }}
+							{{ saving ? "儲存中…" : "儲存排程" }}
 						</PermissionActionButton>
 					</footer>
 				</div>
@@ -339,13 +368,16 @@
 		:message="confirmDialog.config.value.message"
 		:details="confirmDialog.config.value.details"
 		:type="confirmDialog.config.value.type"
-		@confirm="handleConfirmAction"
+		@confirm="closeDialog"
 	/>
 </template>
 
 <script setup lang="ts">
 import type { SecurityZone } from "~/types/security"
-import { useSecurityApi } from "~/composables/systems/security/useSecurityApi"
+import {
+	useSecurityApi,
+	type SecurityScheduleRule,
+} from "~/composables/systems/security/useSecurityApi"
 import { useToast } from "~/composables/core/useToast"
 import { TOAST } from "~/config/toastCatalog"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
@@ -361,10 +393,10 @@ interface ScheduleDraft {
 	windowStart: string
 	windowEnd: string
 	enabled: boolean
+	locationIds: number[]
 }
 
 interface LocationRow {
-	key: string
 	locationId: number
 	locationName: string
 	zoneName: string
@@ -379,7 +411,6 @@ interface ZoneGroup {
 const props = defineProps<{
 	modelValue: boolean
 	zones: SecurityZone[]
-	/** 由頁面傳入，避免對話框重複查權限 */
 	canEdit?: boolean
 }>()
 
@@ -406,14 +437,12 @@ const DOW_OPTIONS = [
 
 const ALL_DOW = DOW_OPTIONS.map((d) => d.value)
 
-const selectedKey = ref("")
 const rules = ref<ScheduleDraft[]>([])
 const baselineRules = ref<ScheduleDraft[]>([])
+const selectedIdx = ref(0)
 const loading = ref(false)
 const saving = ref(false)
 const errorMessage = ref("")
-const pendingSelectKey = ref<string | null>(null)
-const confirmAction = ref<"close" | "switch">("close")
 
 const cloneRules = (list: ScheduleDraft[]): ScheduleDraft[] =>
 	list.map((r) => ({
@@ -422,6 +451,7 @@ const cloneRules = (list: ScheduleDraft[]): ScheduleDraft[] =>
 		windowStart: r.windowStart,
 		windowEnd: r.windowEnd,
 		enabled: r.enabled,
+		locationIds: [...r.locationIds],
 	}))
 
 const rulesSignature = (list: ScheduleDraft[]) =>
@@ -432,6 +462,7 @@ const rulesSignature = (list: ScheduleDraft[]) =>
 			windowStart: r.windowStart,
 			windowEnd: r.windowEnd,
 			enabled: r.enabled !== false,
+			locationIds: [...r.locationIds].sort((a, b) => a - b),
 		}))
 	)
 
@@ -440,7 +471,7 @@ const hasUnsavedChanges = computed(
 )
 
 const changedFieldsList = computed(() =>
-	hasUnsavedChanges.value ? ["時段規則"] : []
+	hasUnsavedChanges.value ? ["排程規則"] : []
 )
 
 const changeSummary = computed(() =>
@@ -459,7 +490,6 @@ const zoneGroups = computed((): ZoneGroup[] => {
 			const id = Number(loc.id)
 			if (!Number.isFinite(id) || id <= 0) continue
 			locations.push({
-				key: `${zone.id || zone.name}-${id}`,
 				locationId: id,
 				locationName: loc.name || `點位 #${id}`,
 				zoneName: zone.name || "區域",
@@ -477,74 +507,50 @@ const zoneGroups = computed((): ZoneGroup[] => {
 
 const locationRows = computed(() => zoneGroups.value.flatMap((g) => g.locations))
 
-const selectedRow = computed(
-	() => locationRows.value.find((r) => r.key === selectedKey.value) ?? null
-)
-
-const selectedLabel = computed(() => {
-	const row = selectedRow.value
-	return row ? `${row.zoneName}／${row.locationName}` : ""
+const selectedRule = computed(() => {
+	if (selectedIdx.value < 0 || selectedIdx.value >= rules.value.length) return null
+	return rules.value[selectedIdx.value] ?? null
 })
 
-const toDraft = (r: {
-	name?: string
-	daysOfWeek?: number[]
-	windowStart?: string
-	windowEnd?: string
-	enabled?: boolean
-}): ScheduleDraft => ({
+const toDraft = (r: SecurityScheduleRule | ScheduleDraft): ScheduleDraft => ({
 	name: r.name || "",
 	daysOfWeek:
-		Array.isArray(r.daysOfWeek) && r.daysOfWeek.length ? r.daysOfWeek : [...ALL_DOW],
-	windowStart: String(r.windowStart || "00:00").slice(0, 5),
-	windowEnd: String(r.windowEnd || "23:59").slice(0, 5),
+		Array.isArray(r.daysOfWeek) && r.daysOfWeek.length ? r.daysOfWeek.map(Number) : [...ALL_DOW],
+	windowStart: String(r.windowStart || "08:00").slice(0, 5),
+	windowEnd: String(r.windowEnd || "18:00").slice(0, 5),
 	enabled: r.enabled !== false,
+	locationIds: Array.isArray(r.locationIds)
+		? r.locationIds.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+		: [],
 })
 
 const toHhMmSs = (t: string) => (t.length === 5 ? `${t}:00` : t)
 
-const loadRules = async (locationId: number) => {
+const loadRules = async () => {
 	loading.value = true
 	errorMessage.value = ""
 	try {
-		const res = await securityApi.getSchedules(locationId)
+		const res = await securityApi.getSchedules()
 		rules.value = (res.rules || []).map(toDraft)
+		selectedIdx.value = rules.value.length > 0 ? 0 : -1
 		commitBaseline()
 	} catch (err: unknown) {
-		errorMessage.value = err instanceof Error ? err.message : "載入時段失敗"
+		errorMessage.value = err instanceof Error ? err.message : "載入排程失敗"
 		rules.value = []
+		selectedIdx.value = -1
 		commitBaseline()
 	} finally {
 		loading.value = false
 	}
 }
 
-const applySelectLocation = (row: LocationRow) => {
-	selectedKey.value = row.key
-	void loadRules(row.locationId)
-}
-
-const handleSelectLocation = (row: LocationRow) => {
-	if (row.key === selectedKey.value) return
-	if (hasUnsavedChanges.value) {
-		pendingSelectKey.value = row.key
-		confirmAction.value = "switch"
-		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
-		return
-	}
-	applySelectLocation(row)
-}
-
 const closeDialog = () => {
 	errorMessage.value = ""
-	pendingSelectKey.value = null
 	emit("update:modelValue", false)
 }
 
 const handleClose = () => {
 	if (hasUnsavedChanges.value) {
-		confirmAction.value = "close"
-		pendingSelectKey.value = null
 		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
 		return
 	}
@@ -553,18 +559,12 @@ const handleClose = () => {
 
 const handleDiscard = () => {
 	rules.value = cloneRules(baselineRules.value)
-	errorMessage.value = ""
-}
-
-const handleConfirmAction = () => {
-	if (confirmAction.value === "switch" && pendingSelectKey.value) {
-		const key = pendingSelectKey.value
-		pendingSelectKey.value = null
-		const row = locationRows.value.find((r) => r.key === key)
-		if (row) applySelectLocation(row)
-		return
+	if (rules.value.length === 0) {
+		selectedIdx.value = -1
+	} else if (selectedIdx.value < 0 || selectedIdx.value >= rules.value.length) {
+		selectedIdx.value = 0
 	}
-	closeDialog()
+	errorMessage.value = ""
 }
 
 const handleAddRule = () => {
@@ -574,11 +574,18 @@ const handleAddRule = () => {
 		windowStart: "08:00",
 		windowEnd: "18:00",
 		enabled: true,
+		locationIds: [],
 	})
+	selectedIdx.value = rules.value.length - 1
 }
 
 const handleRemoveRule = (idx: number) => {
 	rules.value.splice(idx, 1)
+	if (rules.value.length === 0) {
+		selectedIdx.value = -1
+		return
+	}
+	selectedIdx.value = Math.min(idx, rules.value.length - 1)
 }
 
 const handleToggleDow = (idx: number, day: number, checked: boolean) => {
@@ -596,13 +603,44 @@ const handleSetAllDow = (idx: number, selectAll: boolean) => {
 	rule.daysOfWeek = selectAll ? [...ALL_DOW] : []
 }
 
+const handleToggleLocation = (idx: number, locationId: number, checked: boolean) => {
+	const rule = rules.value[idx]
+	if (!rule) return
+	const set = new Set(rule.locationIds)
+	if (checked) set.add(locationId)
+	else set.delete(locationId)
+	rule.locationIds = [...set].sort((a, b) => a - b)
+}
+
+const handleSetAllLocations = (idx: number, selectAll: boolean) => {
+	const rule = rules.value[idx]
+	if (!rule) return
+	rule.locationIds = selectAll
+		? locationRows.value.map((r) => r.locationId)
+		: []
+}
+
 const handleSave = async () => {
-	const row = selectedRow.value
-	if (!row || !canEdit.value) return
+	if (!canEdit.value) return
 
 	const emptyDow = rules.value.findIndex((r) => !r.daysOfWeek.length)
 	if (emptyDow >= 0) {
-		errorMessage.value = `時段 ${emptyDow + 1} 須至少選擇一天`
+		errorMessage.value = `規則 ${emptyDow + 1} 須至少選擇一天`
+		selectedIdx.value = emptyDow
+		return
+	}
+	const emptyLoc = rules.value.findIndex((r) => !r.locationIds.length)
+	if (emptyLoc >= 0) {
+		errorMessage.value = `規則 ${emptyLoc + 1} 須至少綁定一個保全地點`
+		selectedIdx.value = emptyLoc
+		return
+	}
+	const sameTime = rules.value.findIndex(
+		(r) => toHhMmSs(r.windowStart) === toHhMmSs(r.windowEnd)
+	)
+	if (sameTime >= 0) {
+		errorMessage.value = `規則 ${sameTime + 1} 時段起迄不可相同`
+		selectedIdx.value = sameTime
 		return
 	}
 
@@ -610,20 +648,23 @@ const handleSave = async () => {
 	errorMessage.value = ""
 	try {
 		const res = await securityApi.putSchedules(
-			row.locationId,
 			rules.value.map((r) => ({
 				name: r.name,
 				daysOfWeek: r.daysOfWeek,
 				windowStart: toHhMmSs(r.windowStart),
 				windowEnd: toHhMmSs(r.windowEnd),
 				enabled: r.enabled,
+				locationIds: r.locationIds,
 			}))
 		)
 		rules.value = (res.rules || []).map(toDraft)
+		if (selectedIdx.value >= rules.value.length) {
+			selectedIdx.value = rules.value.length > 0 ? 0 : -1
+		}
 		commitBaseline()
 		toast.success(TOAST.SETTINGS_SAVED)
 	} catch (err: unknown) {
-		errorMessage.value = err instanceof Error ? err.message : "儲存時段失敗"
+		errorMessage.value = err instanceof Error ? err.message : "儲存排程失敗"
 	} finally {
 		saving.value = false
 	}
@@ -634,14 +675,7 @@ watch(
 	(open) => {
 		if (!open) return
 		errorMessage.value = ""
-		pendingSelectKey.value = null
-		const first = locationRows.value[0]
-		if (first) applySelectLocation(first)
-		else {
-			selectedKey.value = ""
-			rules.value = []
-			commitBaseline()
-		}
+		void loadRules()
 	}
 )
 </script>

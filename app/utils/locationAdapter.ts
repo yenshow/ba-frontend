@@ -856,6 +856,9 @@ export function unifiedToSecurityZone(
 			const cfg = sys.config as FireSystemConfig & {
 				accessDeviceIds?: number[]
 				dataSource?: import("~/types/security").SecurityDataSource
+				armingMode?: import("~/types/security").SecurityArmingMode
+				entryDelaySec?: number
+				exitDelaySec?: number
 			}
 			const accessDeviceIds = Array.isArray(cfg.accessDeviceIds)
 				? cfg.accessDeviceIds.map(Number).filter((n) => n > 0)
@@ -882,6 +885,9 @@ export function unifiedToSecurityZone(
 					viewCategory: cfg.viewCategory ?? "perimeter",
 					statusPoints: cfg.statusPoints,
 					accessDeviceIds,
+					armingMode: cfg.armingMode ?? "immediate",
+					entryDelaySec: cfg.entryDelaySec,
+					exitDelaySec: cfg.exitDelaySec,
 				} as import("~/types/security").SecurityLocation,
 			]
 		}),
@@ -984,6 +990,9 @@ export function securityLocationToUnified(
 					viewCategory: location.viewCategory ?? "perimeter",
 					statusPoints,
 					accessDeviceIds: location.accessDeviceIds || [],
+					armingMode: location.armingMode ?? "immediate",
+					entryDelaySec: location.entryDelaySec,
+					exitDelaySec: location.exitDelaySec,
 				} as FireSystemConfig,
 			},
 		],

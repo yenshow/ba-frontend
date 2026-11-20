@@ -11,6 +11,25 @@ import {
 	type StatusSnapshotQuery,
 } from "~/composables/monitoring/statusSnapshotQuery"
 
+export type SecurityScheduleRule = {
+	id: number
+	name: string
+	daysOfWeek: number[]
+	windowStart: string
+	windowEnd: string
+	enabled: boolean
+	locationIds: number[]
+}
+
+export type SecurityScheduleRuleInput = {
+	name?: string
+	daysOfWeek?: number[]
+	windowStart: string
+	windowEnd: string
+	enabled?: boolean
+	locationIds: number[]
+}
+
 export const useSecurityApi = () => {
 	const zoneApi = useSystemLocationApiFactory<SecurityZone, SecurityLocation>({
 		systemType: "security",
@@ -22,15 +41,6 @@ export const useSecurityApi = () => {
 	const { request } = useApiBase()
 
 	type StatusQuery = StatusSnapshotQuery
-	type ScheduleRule = {
-		id: number
-		locationId: number
-		name: string
-		daysOfWeek: number[]
-		windowStart: string
-		windowEnd: string
-		enabled: boolean
-	}
 
 	return {
 		getZones: zoneApi.getZones,
@@ -49,19 +59,10 @@ export const useSecurityApi = () => {
 				`/security/zones/${zoneId}/status`,
 				{ timeout: 30_000 }
 			),
-		getSchedules: (locationId: number | string) =>
-			request<{ rules: ScheduleRule[] }>(`/security/locations/${locationId}/schedules`),
-		putSchedules: (
-			locationId: number | string,
-			rules: Array<{
-				name?: string
-				daysOfWeek?: number[]
-				windowStart: string
-				windowEnd: string
-				enabled?: boolean
-			}>
-		) =>
-			request<{ rules: ScheduleRule[] }>(`/security/locations/${locationId}/schedules`, {
+		getSchedules: () =>
+			request<{ rules: SecurityScheduleRule[] }>(`/security/schedules`),
+		putSchedules: (rules: SecurityScheduleRuleInput[]) =>
+			request<{ rules: SecurityScheduleRule[] }>(`/security/schedules`, {
 				method: "PUT",
 				body: { rules },
 			}),

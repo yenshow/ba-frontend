@@ -22,7 +22,7 @@
 			class="show-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto ps-3 pe-1 pt-2 2xl:mt-8 2xl:space-y-8"
 		>
 		<div v-for="zone in displayedZones" :key="zone.id || zone.name" class="space-y-3 2xl:space-y-4">
-			<div class="flex items-center justify-start gap-3">
+			<div class="flex items-start justify-start gap-3">
 				<div class="relative shrink-0">
 					<button
 						type="button"
@@ -62,44 +62,52 @@
 					</span>
 				</div>
 
-				<div
-					v-if="zoneRows(zone).length > 0"
-					class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2"
+				<template
+					v-for="locView in [locationViewForZone(zone)]"
+					:key="`${zone.id || zone.name}-locs`"
 				>
 					<div
-						v-for="row in zoneRows(zone)"
-						:key="row.rowKey"
-						class="flex min-w-0 flex-col rounded-xl border-2 border-white px-3 py-2"
-						:class="[rowBackgroundClass(row.uiStatus), rowBlinkClass(row.uiStatus)]"
+						v-if="locView.visible.length > 0"
+						class="flex min-w-0 flex-1 items-start gap-1"
 					>
-						<div class="flex min-w-0 items-center gap-3 py-2">
-							<div class="shrink-0">
-								<FanIcon
-									:aria-label="`${row.locationName} 設備圖示`"
-									root-class="h-16 w-16 text-white 2xl:h-24 2xl:w-24"
-									:spin="row.uiStatus === 'alarm'"
-								/>
-							</div>
-							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
-								<h4 class="truncate text-center text-lg text-white 2xl:text-xl">
-									{{ row.locationName }}
-								</h4>
-								<div
-									class="mx-1 flex items-center justify-center gap-2 rounded-full border border-white bg-white/10 py-2"
-								>
-									<span
-										class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
-										:class="statusDotClass(row.uiStatus)"
-										aria-hidden="true"
-									/>
-									<span class="text-sm text-white 2xl:text-base">
-										{{ statusLabel(row.uiStatus) }}
-									</span>
+						<div class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+							<div
+								v-for="row in locView.visible"
+								:key="row.rowKey"
+								class="flex min-w-0 flex-col rounded-xl border-2 border-white px-3 py-2"
+								:class="[rowBackgroundClass(row.uiStatus), rowBlinkClass(row.uiStatus)]"
+							>
+								<div class="flex min-w-0 items-center gap-3 py-2">
+									<div class="shrink-0">
+										<FanIcon
+											:aria-label="`${row.locationName} 設備圖示`"
+											root-class="h-16 w-16 text-white 2xl:h-24 2xl:w-24"
+											:spin="row.uiStatus === 'alarm'"
+										/>
+									</div>
+									<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
+										<h4 class="truncate text-center text-lg text-white 2xl:text-xl">
+											{{ row.locationName }}
+										</h4>
+										<div
+											class="mx-1 flex items-center justify-center gap-2 rounded-full border border-white bg-white/10 py-2"
+										>
+											<span
+												class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
+												:class="statusDotClass(row.uiStatus)"
+												aria-hidden="true"
+											/>
+											<span class="text-sm text-white 2xl:text-base">
+												{{ statusLabel(row.uiStatus) }}
+											</span>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
+						<StatusCenterCollapsedMore :show="locView.hiddenCount > 0" />
 					</div>
-				</div>
+				</template>
 			</div>
 		</div>
 
@@ -117,6 +125,7 @@
 
 <script setup lang="ts">
 import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
+import StatusCenterCollapsedMore from "~/components/common/StatusCenterCollapsedMore.vue"
 import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import FanIcon from "~/components/air-circulation/FanIcon.vue"
@@ -130,6 +139,11 @@ import {
 import type { SystemUiStatus } from "~/utils/monitoringStatus"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { buildViewCategoryStatusById } from "~/utils/monitorViewCategoryStatus"
+import {
+	compareMonitorLocationPriority,
+	monitorUiSeverityRank,
+	viewCollapsedZoneLocations,
+} from "~/utils/toggleStatusCenterOrder"
 
 const viewFilter = defineModel<string>("viewFilter", { required: true })
 
@@ -248,22 +262,27 @@ const getZoneBlinkClass = (zone: AirCirculationZone) => {
 }
 
 const zoneRows = (zone: AirCirculationZone) => {
-	const out: Array<{
-		rowKey: string
-		locationName: string
-		uiStatus: SystemUiStatus
-	}> = []
-
 	const locs = locationsForZone(zone)
-	for (let i = 0; i < locs.length; i += 1) {
-		const loc = locs[i]!
+	const out = locs.map((loc, i) => {
 		const uiStatus = uiStatusForLocation(loc)
-		out.push({
+		return {
 			rowKey: loc.id || `${zone.id || zone.name}-${i}`,
 			locationName: loc.name,
 			uiStatus,
-		})
-	}
-	return out
+			index: i,
+		}
+	})
+	return [...out].sort((a, b) =>
+		compareMonitorLocationPriority(
+			{ severityRank: monitorUiSeverityRank(a.uiStatus), index: a.index },
+			{ severityRank: monitorUiSeverityRank(b.uiStatus), index: b.index }
+		)
+	)
 }
+
+const isZoneExpanded = (zone: AirCirculationZone): boolean =>
+	props.selectedZone === (zone.id || zone.name)
+
+const locationViewForZone = (zone: AirCirculationZone) =>
+	viewCollapsedZoneLocations(zoneRows(zone), isZoneExpanded(zone))
 </script>

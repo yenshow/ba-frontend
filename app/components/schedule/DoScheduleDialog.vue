@@ -42,12 +42,6 @@
 						<p v-if="errorMessage" class="mb-3 form-error-text-lg" role="alert">
 							{{ errorMessage }}
 						</p>
-						<p class="mb-3 text-xs leading-relaxed text-white/55 2xl:text-sm">
-							{{ onTimeLabel }}與{{ offTimeLabel }}為獨立到點觸發（各寫一次
-							DO，不持續對齊）；無先後限制（{{ onTimeLabel }}可比{{
-								offTimeLabel
-							}}晚）。一組規則可綁多個{{ systemNoun }}地點；時區 Asia/Taipei。跨日請一併勾選對應星期。手動開關可立即生效，下一個排程時刻會覆寫。
-						</p>
 
 						<div class="grid min-h-0 flex-1 grid-cols-12 gap-4 2xl:gap-5">
 							<aside

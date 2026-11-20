@@ -113,17 +113,46 @@ export type IntercomOverviewGridCell =
 	| { kind: "overflow"; count: number }
 	| null
 
+/**
+ * 對講戶別優先序：未綁定室內機（異常）＞已綁定；同級維持原序。
+ * （對齊監控中心「警報／異常＞開啟＞關閉」語意）
+ */
+export const sortIntercomLocationsByMonitorPriority = <
+	T extends { indoorDeviceId?: number | null },
+>(
+	locations: readonly T[]
+): T[] => {
+	return locations
+		.map((location, index) => ({ location, index }))
+		.sort((a, b) => {
+			const aBound = Boolean(a.location.indoorDeviceId)
+			const bBound = Boolean(b.location.indoorDeviceId)
+			// 未綁定＝異常優先
+			if (aBound !== bBound) return aBound ? 1 : -1
+			return a.index - b.index
+		})
+		.map((row) => row.location)
+}
+
 export const buildIntercomOverviewGrid = (
-	locations: IntercomSiteLocation[]
+	locations: IntercomSiteLocation[],
+	opts?: { maxVisibleUnits?: number; padToFullGrid?: boolean }
 ): IntercomOverviewGridCell[] => {
-	const ordered = groupIntercomLocationsByFloor(locations).flatMap(
-		(group) => group.locations
+	const ordered = groupIntercomLocationsByFloor(locations).flatMap((group) =>
+		sortIntercomLocationsByMonitorPriority(group.locations)
 	)
+
+	const maxVisible = opts?.maxVisibleUnits
+	if (maxVisible != null) {
+		const sliced = ordered.slice(0, Math.max(0, maxVisible))
+		return sliced.map((location) => ({ kind: "unit" as const, location }))
+	}
+
+	const pad = opts?.padToFullGrid !== false
 	if (ordered.length <= OVERVIEW_GRID_CELLS) {
-		return [
-			...ordered.map((location) => ({ kind: "unit" as const, location })),
-			...Array(OVERVIEW_GRID_CELLS - ordered.length).fill(null),
-		]
+		const units = ordered.map((location) => ({ kind: "unit" as const, location }))
+		if (!pad) return units
+		return [...units, ...Array(OVERVIEW_GRID_CELLS - ordered.length).fill(null)]
 	}
 	const visible = OVERVIEW_GRID_CELLS - 1
 	return [

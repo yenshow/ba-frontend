@@ -12,7 +12,7 @@
 			class="show-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto ps-3 pe-1 pt-2 2xl:mt-8 2xl:space-y-8"
 		>
 		<div v-for="zone in displayedZones" :key="zone.id" class="space-y-3 2xl:space-y-4">
-			<div class="flex items-center justify-start gap-3">
+			<div class="flex items-start justify-start gap-3">
 				<!-- 區域標題 -->
 				<div class="relative shrink-0">
 					<button
@@ -46,13 +46,15 @@
 					</span>
 				</div>
 
-				<!-- 該區域的地點（點位）- 兩列布局 -->
+				<!-- 該區域的地點（點位）- 兩列布局；未選區只顯示優先序前 2 筆 -->
+				<template v-for="locView in [locationViewForZone(zone)]" :key="`${zone.id || zone.name}-locs`">
 				<div
-					v-if="getZoneLocationsWithIds(zone).length > 0"
-					class="grid grid-cols-2 gap-x-2 gap-y-4 2xl:gap-y-6"
+					v-if="locView.visible.length > 0"
+					class="flex min-w-0 flex-1 items-start gap-1"
 				>
+				<div class="grid min-w-0 flex-1 grid-cols-2 gap-x-2 gap-y-4 2xl:gap-y-6">
 					<div
-						v-for="row in getZoneLocationsWithIds(zone)"
+						v-for="row in locView.visible"
 						:key="row.locationId"
 						:class="[
 							'flex flex-col rounded-xl border-2 border-white px-3 py-2',
@@ -139,6 +141,9 @@
 						</div>
 					</div>
 				</div>
+					<StatusCenterCollapsedMore :show="locView.hiddenCount > 0" />
+				</div>
+				</template>
 			</div>
 		</div>
 		</div>
@@ -148,9 +153,14 @@
 <script setup lang="ts">
 import type { LightingZone, LightingLocation } from "~/types/lighting"
 import type { SystemUiStatus } from "~/utils/monitoringStatus"
+import StatusCenterCollapsedMore from "~/components/common/StatusCenterCollapsedMore.vue"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { TOGGLE_SNAPSHOT_HOLD_MS } from "~/utils/realtimeTiming"
+import {
+	compareToggleLocationPriority,
+	viewCollapsedZoneLocations,
+} from "~/utils/toggleStatusCenterOrder"
 
 interface Props {
 	zones: LightingZone[]
@@ -228,15 +238,6 @@ const getZoneLocations = (zone: LightingZone): LightingLocation[] => {
 	return zone.locations || []
 }
 
-/** 每列只算一次 locationId，避免 template 重複呼叫 */
-const getZoneLocationsWithIds = (zone: LightingZone) => {
-	return getZoneLocations(zone).map((location, locationIndex) => ({
-		location,
-		locationIndex,
-		locationId: getLocationUiKey({ zone, location, locationIndex }),
-	}))
-}
-
 // 顯示的區域（只顯示有地點的區域）
 const displayedZones = computed(() => {
 	if (!props.zones || !Array.isArray(props.zones)) {
@@ -281,8 +282,38 @@ const getEffectiveIsRunning = (locationId: string) => {
 
 const isLocationNormal = (locationId: string): boolean => getLocationStatus(locationId).status === "normal"
 
+/** 每列只算一次 locationId；並依異常＞開啟＞關閉排序 */
+const getSortedZoneLocations = (zone: LightingZone) => {
+	const rows = getZoneLocations(zone).map((location, locationIndex) => ({
+		location,
+		locationIndex,
+		locationId: getLocationUiKey({ zone, location, locationIndex }),
+	}))
+	return [...rows].sort((a, b) =>
+		compareToggleLocationPriority(
+			{
+				isAlert: !isLocationNormal(a.locationId),
+				isOn: getEffectiveIsRunning(a.locationId),
+				index: a.locationIndex,
+			},
+			{
+				isAlert: !isLocationNormal(b.locationId),
+				isOn: getEffectiveIsRunning(b.locationId),
+				index: b.locationIndex,
+			}
+		)
+	)
+}
+
+const isZoneExpanded = (zone: LightingZone): boolean =>
+	props.selectedZone === (zone.id || zone.name)
+
+/** 未選區只顯示優先序前 N 筆；選中展開全部 */
+const locationViewForZone = (zone: LightingZone) =>
+	viewCollapsedZoneLocations(getSortedZoneLocations(zone), isZoneExpanded(zone))
+
 const zoneHasWarning = (zone: LightingZone): boolean => {
-	return getZoneLocationsWithIds(zone).some((row) => !isLocationNormal(row.locationId))
+	return getSortedZoneLocations(zone).some((row) => !isLocationNormal(row.locationId))
 }
 
 const getLocationCardBlinkClass = (locationId: string): string =>

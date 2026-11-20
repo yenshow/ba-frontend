@@ -41,31 +41,40 @@
 					</div>
 				</div>
 
-				<div class="grid grid-cols-3 gap-2 overflow-hidden">
+				<div class="flex items-start gap-1">
 					<div
-						v-for="(cell, index) in displayUnits"
-						:key="cell?.kind === 'unit' ? cell.location.id : `pad-${index}`"
-						class="flex min-h-[36px] min-w-[64px] items-center justify-center p-2 text-center"
-						:class="
-							isActiveCell(cell)
-								? 'monitoring-chip-bg text-white/90'
-								: 'bg-black/20 text-white/30'
-						"
-						:title="cellTitle(cell)"
+						class="grid gap-2 overflow-hidden"
+						:class="selected ? 'grid-cols-3' : 'grid-cols-2'"
 					>
-						<span
-							v-if="cell?.kind === 'unit'"
-							class="line-clamp-2 text-[11px] font-semibold text-white 2xl:text-xs"
+						<div
+							v-for="(cell, index) in displayUnits"
+							:key="cell?.kind === 'unit' ? cell.location.id : `pad-${index}`"
+							class="flex min-h-[36px] min-w-[64px] items-center justify-center p-2 text-center"
+							:class="
+								isActiveCell(cell)
+									? 'monitoring-chip-bg text-white/90'
+									: 'bg-black/20 text-white/30'
+							"
+							:title="cellTitle(cell)"
 						>
-							{{ cell.location.displayName || cell.location.name }}
-						</span>
-						<span
-							v-else-if="cell?.kind === 'overflow'"
-							class="text-[11px] font-semibold text-white 2xl:text-xs"
-						>
-							+{{ cell.count }}
-						</span>
+							<span
+								v-if="cell?.kind === 'unit'"
+								class="line-clamp-2 text-[11px] font-semibold text-white 2xl:text-xs"
+							>
+								{{ cell.location.displayName || cell.location.name }}
+							</span>
+							<span
+								v-else-if="cell?.kind === 'overflow'"
+								class="text-[11px] font-semibold text-white 2xl:text-xs"
+							>
+								+{{ cell.count }}
+							</span>
+						</div>
 					</div>
+					<StatusCenterCollapsedMore
+						:show="hiddenUnitCount > 0"
+						aria-label="還有未展開的戶別，選取後展開"
+					/>
 				</div>
 			</div>
 		</div>
@@ -75,17 +84,27 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { IntercomMainStation, IntercomSiteZone } from "~/types/intercom"
+import StatusCenterCollapsedMore from "~/components/common/StatusCenterCollapsedMore.vue"
 import {
 	buildIntercomOverviewGrid,
 	formatIntercomArmingLabel,
 	resolveIntercomZoneStation,
 	type IntercomOverviewGridCell,
 } from "~/utils/intercom"
+import { STATUS_CENTER_COLLAPSED_LIMIT } from "~/utils/toggleStatusCenterOrder"
 
-const props = defineProps<{
-	zone: IntercomSiteZone
-	stations?: IntercomMainStation[]
-}>()
+const props = withDefaults(
+	defineProps<{
+		zone: IntercomSiteZone
+		stations?: IntercomMainStation[]
+		/** 選取後展開完整總覽格；未選取只顯示優先序前 2 戶 */
+		selected?: boolean
+	}>(),
+	{
+		stations: () => [],
+		selected: false,
+	}
+)
 
 const emit = defineEmits<{
 	select: [zoneId: number]
@@ -94,8 +113,16 @@ const emit = defineEmits<{
 const station = computed(() =>
 	resolveIntercomZoneStation(props.zone, props.stations || [])
 )
-const displayUnits = computed(() => buildIntercomOverviewGrid(props.zone.locations || []))
 const unitCount = computed(() => props.zone.locations?.length || 0)
+const displayUnits = computed(() =>
+	buildIntercomOverviewGrid(props.zone.locations || [], {
+		maxVisibleUnits: props.selected ? undefined : STATUS_CENTER_COLLAPSED_LIMIT,
+		padToFullGrid: props.selected,
+	})
+)
+const hiddenUnitCount = computed(() =>
+	props.selected ? 0 : Math.max(0, unitCount.value - STATUS_CENTER_COLLAPSED_LIMIT)
+)
 const indoorCount = computed(
 	() => (props.zone.locations || []).filter((loc) => loc.indoorDeviceId).length
 )

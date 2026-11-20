@@ -10,7 +10,7 @@
 			class="show-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto ps-3 pe-1 pt-2 2xl:mt-8 2xl:space-y-8"
 		>
 			<div v-for="zone in displayedZones" :key="zone.id" class="space-y-3 2xl:space-y-4">
-				<div class="flex items-center justify-start gap-3">
+				<div class="flex items-start justify-start gap-3">
 					<div class="relative shrink-0">
 						<button
 							type="button"
@@ -41,12 +41,17 @@
 						</span>
 					</div>
 
-					<div
-						v-if="getZoneLocationsWithIds(zone).length > 0"
-						class="flex min-w-0 flex-1 flex-col gap-3 2xl:gap-4"
+					<template
+						v-for="locView in [locationViewForZone(zone)]"
+						:key="`${zone.id || zone.name}-locs`"
 					>
+					<div
+						v-if="locView.visible.length > 0"
+						class="flex min-w-0 flex-1 items-start gap-1"
+					>
+						<div class="flex min-w-0 flex-1 flex-col gap-3 2xl:gap-4">
 						<div
-							v-for="row in getZoneLocationsWithIds(zone)"
+							v-for="row in locView.visible"
 							:key="row.locationId"
 							:class="[
 								'flex justify-center items-center rounded-xl border-2 border-white pt-2 pb-4 gap-4',
@@ -267,7 +272,10 @@
 								</div>
 							</div>
 						</div>
+						</div>
+						<StatusCenterCollapsedMore :show="locView.hiddenCount > 0" />
 					</div>
+					</template>
 				</div>
 			</div>
 		</div>
@@ -276,9 +284,14 @@
 
 <script setup lang="ts">
 import type { HvacZone, HvacLocation, HvacUiStatus } from "~/types/hvac"
+import StatusCenterCollapsedMore from "~/components/common/StatusCenterCollapsedMore.vue"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { TOGGLE_SNAPSHOT_HOLD_MS } from "~/utils/realtimeTiming"
+import {
+	compareToggleLocationPriority,
+	viewCollapsedZoneLocations,
+} from "~/utils/toggleStatusCenterOrder"
 
 interface Props {
 	zones: HvacZone[]
@@ -394,13 +407,6 @@ const clearLocalWhenSnapshotMatches = (
 
 const getZoneLocations = (zone: HvacZone): HvacLocation[] => zone.locations || []
 
-const getZoneLocationsWithIds = (zone: HvacZone) =>
-	getZoneLocations(zone).map((location, locationIndex) => ({
-		location,
-		locationIndex,
-		locationId: getLocationUiKey({ zone: zone as any, location: location as any, locationIndex }),
-	}))
-
 const displayedZones = computed(() => {
 	if (!props.zones || !Array.isArray(props.zones)) return []
 	const zonesWithLocations = props.zones.filter((z) => getZoneLocations(z).length > 0)
@@ -433,6 +439,39 @@ const getEffectiveIsOn = (locationId: string) => {
 	if (pending) return pending.nextIsOn
 	return getLocationStatus(locationId).isOn
 }
+
+const isLocationNormal = (locationId: string): boolean =>
+	getLocationStatus(locationId).uiStatus === "normal"
+
+/** 依異常＞開啟＞關閉排序 */
+const getSortedZoneLocations = (zone: HvacZone) => {
+	const rows = getZoneLocations(zone).map((location, locationIndex) => ({
+		location,
+		locationIndex,
+		locationId: getLocationUiKey({ zone: zone as any, location: location as any, locationIndex }),
+	}))
+	return [...rows].sort((a, b) =>
+		compareToggleLocationPriority(
+			{
+				isAlert: !isLocationNormal(a.locationId),
+				isOn: getEffectiveIsOn(a.locationId),
+				index: a.locationIndex,
+			},
+			{
+				isAlert: !isLocationNormal(b.locationId),
+				isOn: getEffectiveIsOn(b.locationId),
+				index: b.locationIndex,
+			}
+		)
+	)
+}
+
+const isZoneExpanded = (zone: HvacZone): boolean =>
+	props.selectedZone === (zone.id || zone.name)
+
+/** 未選區只顯示優先序前 N 筆；選中展開全部 */
+const locationViewForZone = (zone: HvacZone) =>
+	viewCollapsedZoneLocations(getSortedZoneLocations(zone), isZoneExpanded(zone))
 
 const getFanLevels = (location: HvacLocation): number[] => {
 	const levels = location.statusPoints?.fanSpeed?.levels
@@ -536,9 +575,6 @@ const handleFanSpeedStep = (locationId: string, location: HvacLocation, directio
 	emit("set-fan-speed", locationId, next)
 }
 
-const isLocationNormal = (locationId: string): boolean =>
-	getLocationStatus(locationId).uiStatus === "normal"
-
 const isLocationDisabled = (locationId: string): boolean =>
 	(props.areaDisabledMap[locationId] ?? false) ||
 	props.areaToggling.has(locationId) ||
@@ -553,7 +589,7 @@ const getLocationCardBackgroundClass = (locationId: string): string =>
 	isWarning(locationId) ? "bg-[#FFC801]/60" : "bg-white/10"
 
 const zoneHasWarning = (zone: HvacZone) =>
-	getZoneLocationsWithIds(zone).some((row) => isWarning(row.locationId))
+	getSortedZoneLocations(zone).some((row) => isWarning(row.locationId))
 
 const getZoneBlinkClass = (zone: HvacZone): string => (zoneHasWarning(zone) ? "blink-slow" : "")
 
