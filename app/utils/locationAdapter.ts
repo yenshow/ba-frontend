@@ -28,7 +28,6 @@ import {
 } from "~/utils/peopleCountingLogColumns"
 import { normalizeDashboardLayout } from "~/utils/peopleCountingDashboardLayout"
 import { normalizeFaceSimilarityThreshold } from "~/utils/peopleCountingFaceThreshold"
-import { toStoredEventBackfillConfig } from "~/utils/eventBackfillFields"
 import {
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
@@ -157,11 +156,6 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 						config.faceSimilarityThreshold != null
 							? normalizeFaceSimilarityThreshold(config.faceSimilarityThreshold)
 							: undefined,
-					eventBackfillEnabled: config.eventBackfillEnabled === true,
-					eventBackfillWindowSec:
-						typeof config.eventBackfillWindowSec === "number"
-							? config.eventBackfillWindowSec
-							: undefined,
 					preferRegion: config.preferRegion ?? undefined,
 					entryEventCameraDeviceId: config.entryEventCameraDeviceId ?? undefined,
 					entryEventCameraNvrTrackId: config.entryEventCameraNvrTrackId ?? undefined,
@@ -256,11 +250,6 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					exitCameraDeviceIds: vaSystem.config.exitCameraDeviceIds ?? [],
 					cameraChannelId: vaSystem.config.cameraChannelId ?? 1,
 					vehicleGroupIds: vaSystem.config.vehicleGroupIds ?? [],
-					eventBackfillEnabled: vaSystem.config.eventBackfillEnabled === true,
-					eventBackfillWindowSec:
-						typeof vaSystem.config.eventBackfillWindowSec === "number"
-							? vaSystem.config.eventBackfillWindowSec
-							: undefined,
 					logDisplayColumns: normalizeVehicleLogDisplayColumns(
 						vaSystem.config.logDisplayColumns
 					),
@@ -421,9 +410,6 @@ export function peopleCountingLocationToUnified(
 							}
 						: {}),
 					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
-					...(loc.dataSource === "access_control" || isFace
-						? toStoredEventBackfillConfig(loc)
-						: {}),
 					...(loc.dataSource === "access_control"
 						? {
 								entryEventCameraDeviceId: toStoredEventCameraDeviceId(
@@ -495,9 +481,6 @@ export function vehicleAccessLocationToUnified(
 					exitCameraDeviceIds: loc.exitCameraDeviceIds ?? [],
 					cameraChannelId: loc.cameraChannelId ?? 1,
 					vehicleGroupIds: loc.vehicleGroupIds ?? [],
-					...(loc.dataSource === "isapi_camera"
-						? toStoredEventBackfillConfig(loc)
-						: {}),
 					logDisplayColumns: toStoredVehicleLogDisplayColumns(
 						normalizeVehicleLogDisplayColumns(loc.logDisplayColumns)
 					),

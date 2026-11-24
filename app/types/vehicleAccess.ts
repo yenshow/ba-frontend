@@ -162,9 +162,6 @@ export interface VehicleAccessLocation {
 	parkingCapacity?: number;
 	/** 過車紀錄表格顯示欄位 keys */
 	logDisplayColumns?: string[];
-	/** 訂閱後短查設備歷史補齊漏推 ANPR */
-	eventBackfillEnabled?: boolean;
-	eventBackfillWindowSec?: number;
 	/** 進場／出場／在場車輛顯示名稱（可選；空白＝系統預設） */
 	statLabels?: {
 		entry?: string;
