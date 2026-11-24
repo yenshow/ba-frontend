@@ -2,6 +2,7 @@ import { ref } from "vue"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import type { LocationLicensePlateRow } from "~/types/personnel"
+import { assertPersonnelSyncJobOk } from "~/utils/personnelSyncJobResult"
 
 /** 大批次含人臉寫入設備可遠超 10 分鐘 */
 const SYNC_TIMEOUT_MS = 60 * 60 * 1000
@@ -54,7 +55,7 @@ export const useDeviceSyncObserver = () => {
 				const job = await personnelApi.getSyncLocationJob(jobId)
 				await options?.onTick?.(job)
 				if (job.status === "completed") {
-					if (job.error) throw new Error(job.error.message || "同步失敗")
+					assertPersonnelSyncJobOk(job)
 					return job
 				}
 				if (Date.now() - startedAt > SYNC_TIMEOUT_MS) {

@@ -17,6 +17,7 @@ import {
 	type ToggleModbusSnapshotApplyResult,
 	useModbusIntegrationDeviceCache,
 } from "~/composables/monitoring/modbus/modbusIntegrationShared"
+import { assertModbusWriteOk } from "~/utils/modbusWriteResult"
 
 import {
 	UI_ACTION_DEBOUNCE_MS,
@@ -73,13 +74,17 @@ export type CreateToggleModbusIntegrationConfig<
 			value: number,
 			deviceConfig: ModbusDeviceConfig
 		) => Promise<{ address: number; value: number; success: boolean }>
-		getLocationDeviceConfig: (location: TLocation) => Promise<ModbusDeviceConn | null>
+		getLocationDeviceConfig: (
+			location: TLocation,
+			options?: { forceRefresh?: boolean }
+		) => Promise<ModbusDeviceConn | null>
 		findLocationByUiKey: (
 			uiKey: string,
 			requireDbId?: boolean
 		) => { location: TLocation } | null | undefined
 		setSnapshotHold: (uiKey: string) => void
 		clearSnapshotHold: (uiKey: string) => void
+		scheduleRoundtripRefresh: (locationUiKey: string) => void
 		loadAllLocationStatuses: (options?: { force?: boolean }) => Promise<void>
 		ensureStatus: (uiKey: string) => TLocationStatus
 	}) => Record<string, unknown>
@@ -133,6 +138,7 @@ export const createToggleModbusIntegration = <
 	const locationToggling = ref<Set<string>>(new Set())
 	const snapshotHoldUntilByUiKey = ref<Record<string, number>>({})
 	const toggleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
+	const roundtripTimers = new Map<string, ReturnType<typeof setTimeout>>()
 	let inflightStatusRefresh: Promise<void> | null = null
 
 	const setSnapshotHold = (uiKey: string) => {
@@ -155,7 +161,7 @@ export const createToggleModbusIntegration = <
 			unitId: String(deviceConfig.unitId),
 			controlScope,
 		})
-		return request<{
+		const result = await request<{
 			address: number
 			value: boolean
 			success: boolean
@@ -164,6 +170,8 @@ export const createToggleModbusIntegration = <
 			method: "PUT",
 			body: JSON.stringify({ address, value }),
 		})
+		assertModbusWriteOk(result, `線圈寫入失敗（位址 ${address}）`)
+		return result
 	}
 
 	const writeHoldingRegister = async (
@@ -177,7 +185,7 @@ export const createToggleModbusIntegration = <
 			unitId: String(deviceConfig.unitId),
 			controlScope,
 		})
-		return request<{
+		const result = await request<{
 			address: number
 			value: number
 			success: boolean
@@ -186,9 +194,14 @@ export const createToggleModbusIntegration = <
 			method: "PUT",
 			body: JSON.stringify({ address, value }),
 		})
+		assertModbusWriteOk(result, `暫存器寫入失敗（位址 ${address}）`)
+		return result
 	}
 
-	const getLocationDeviceConfig = async (location: TLocation): Promise<ModbusDeviceConn | null> => {
+	const getLocationDeviceConfig = async (
+		location: TLocation,
+		options?: { forceRefresh?: boolean }
+	): Promise<ModbusDeviceConn | null> => {
 		const modbus = location.modbus as
 			| ({ host?: string; port?: number; unitId?: number } & Record<string, unknown>)
 			| undefined
@@ -208,13 +221,34 @@ export const createToggleModbusIntegration = <
 			return null
 		}
 
-		if (deviceConfigCache.value.has(effectiveDeviceId)) {
+		if (!options?.forceRefresh && deviceConfigCache.value.has(effectiveDeviceId)) {
 			return deviceConfigCache.value.get(effectiveDeviceId)!
 		}
 
-		const device = await loadDeviceInfo(effectiveDeviceId)
+		const device = await loadDeviceInfo(effectiveDeviceId, { force: options?.forceRefresh })
 		if (!device) return null
 		return deviceConfigCache.value.get(effectiveDeviceId) || extractModbusDeviceConfig(device)
+	}
+
+	const clearRoundtripTimer = (locationUiKey: string) => {
+		const existing = roundtripTimers.get(locationUiKey)
+		if (existing) {
+			clearTimeout(existing)
+			roundtripTimers.delete(locationUiKey)
+		}
+	}
+
+	const scheduleRoundtripRefresh = (locationUiKey: string) => {
+		clearRoundtripTimer(locationUiKey)
+		const timer = setTimeout(async () => {
+			roundtripTimers.delete(locationUiKey)
+			try {
+				await loadAllLocationStatuses({ force: true })
+			} finally {
+				locationToggling.value.delete(locationUiKey)
+			}
+		}, TOGGLE_ROUNDTRIP_DELAY_MS)
+		roundtripTimers.set(locationUiKey, timer)
 	}
 
 	const applyBackendSnapshotItems = (items: TSnapshotItem[]) => {
@@ -291,7 +325,8 @@ export const createToggleModbusIntegration = <
 
 		try {
 			setToggleValue(status, targetValue)
-			const deviceConfig = await getLocationDeviceConfig(location)
+			// 手動控制前重新驗證端點，避免設備設定變更後仍寫向舊址
+			const deviceConfig = await getLocationDeviceConfig(location, { forceRefresh: true })
 			if (!deviceConfig) {
 				setToggleValue(status, previousValue)
 				clearSnapshotHold(locationUiKey)
@@ -313,15 +348,9 @@ export const createToggleModbusIntegration = <
 			await Promise.all(
 				writeAddresses.map((address) => writeCoil(address, targetValue, deviceConfig))
 			)
-
-			setTimeout(async () => {
-				try {
-					await loadAllLocationStatuses({ force: true })
-				} finally {
-					locationToggling.value.delete(locationUiKey)
-				}
-			}, TOGGLE_ROUNDTRIP_DELAY_MS)
+			scheduleRoundtripRefresh(locationUiKey)
 		} catch (error) {
+			clearRoundtripTimer(locationUiKey)
 			setToggleValue(status, previousValue)
 			onToggleFailed?.(status, previousValue)
 			handleError(error, `控制 ${location.name ?? locationUiKey} 失敗`)
@@ -360,7 +389,12 @@ export const createToggleModbusIntegration = <
 	const startSnapshotSync = () => snapshotWs.start()
 	const stopSnapshotSync = () => {
 		snapshotWs.stop()
+		for (const timer of toggleDebounceTimers.values()) clearTimeout(timer)
 		toggleDebounceTimers.clear()
+		for (const timer of roundtripTimers.values()) clearTimeout(timer)
+		roundtripTimers.clear()
+		locationToggling.value.clear()
+		snapshotHoldUntilByUiKey.value = {}
 	}
 
 	const handleVisibilityChange = async () => {
@@ -403,6 +437,7 @@ export const createToggleModbusIntegration = <
 			findLocationByUiKey,
 			setSnapshotHold,
 			clearSnapshotHold,
+			scheduleRoundtripRefresh,
 			loadAllLocationStatuses,
 			ensureStatus,
 		}) ?? {}),

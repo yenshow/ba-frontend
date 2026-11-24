@@ -602,6 +602,29 @@ const handleToggle = (areaId: string, isOn: boolean) => {
 
 const handleZoneClick = (zoneId: string) => emit("zone-selected", zoneId)
 
+const dropLocalAnalogKey = (
+	map: Ref<Record<string, number>>,
+	locationId: string,
+	snapshot: number | null
+) => {
+	if (map.value[locationId] == null || snapshot === map.value[locationId]) return
+	const { [locationId]: _removed, ...rest } = map.value
+	map.value = rest
+}
+
+watch(
+	() => Array.from(props.areaToggling).sort().join(","),
+	(curr, prev) => {
+		const currSet = new Set(curr ? curr.split(",").filter(Boolean) : [])
+		for (const locationId of prev ? prev.split(",").filter(Boolean) : []) {
+			if (currSet.has(locationId)) continue
+			// 寫入失敗會立刻離開 toggling；暫存與快照不符則清掉，避免卡住未寫入值
+			dropLocalAnalogKey(localSetpoints, locationId, getSnapshotSetpoint(locationId))
+			dropLocalAnalogKey(localFanSpeeds, locationId, getSnapshotFanSpeed(locationId))
+		}
+	}
+)
+
 watch(
 	() => [props.areaToggling, props.areaStatuses] as const,
 	() => {

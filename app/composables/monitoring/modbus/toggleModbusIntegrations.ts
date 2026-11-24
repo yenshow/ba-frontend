@@ -20,7 +20,6 @@ import { invertDefToRaw } from "~/utils/modbusTransform"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { TOGGLE_ROUNDTRIP_DELAY_MS } from "~/utils/realtimeTiming"
 
 type LightingLocationStatus = {
 	isRunning: boolean
@@ -233,6 +232,7 @@ export const useHvacModbusIntegration = (
 			findLocationByUiKey,
 			setSnapshotHold,
 			clearSnapshotHold,
+			scheduleRoundtripRefresh,
 			loadAllLocationStatuses,
 			ensureStatus,
 		}) => {
@@ -261,8 +261,10 @@ export const useHvacModbusIntegration = (
 				}
 
 				try {
-					// 空調類比一律沿用地點層主控制器
-					const deviceConfig = await getLocationDeviceConfig(location)
+					// 空調類比一律沿用地點層主控制器；寫入前重驗證端點
+					const deviceConfig = await getLocationDeviceConfig(location, {
+						forceRefresh: true,
+					})
 					if (!deviceConfig) {
 						rollback()
 						return
@@ -273,15 +275,10 @@ export const useHvacModbusIntegration = (
 						return
 					}
 					await writeHoldingRegister(point.address, raw, deviceConfig)
-					setTimeout(async () => {
-						try {
-							await loadAllLocationStatuses({ force: true })
-						} finally {
-							locationToggling.value.delete(locationUiKey)
-						}
-					}, TOGGLE_ROUNDTRIP_DELAY_MS)
+					scheduleRoundtripRefresh(locationUiKey)
 				} catch (error) {
 					rollback()
+					void loadAllLocationStatuses({ force: true })
 					throw error
 				}
 			}

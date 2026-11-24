@@ -163,7 +163,8 @@ export const useApiBase = () => {
 
 		if (isDeviceRequest) {
 			const isDeviceConn =
-				isDeviceConnectionError(error) || (errorMessage.includes("??????????") && !isNetworkError)
+				isDeviceConnectionError(error) ||
+				(errorMessage.includes("無法連接到後端伺服器") && !isNetworkError)
 
 			if (isDeviceConn) {
 				throw new ApiRequestError(USER_FACING_CONNECTION_ERROR, {

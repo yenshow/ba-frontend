@@ -61,14 +61,20 @@ export const useModbusIntegrationDeviceCache = () => {
 	const deviceCache = ref<Map<number, Device>>(new Map())
 	const deviceConfigCache = ref<Map<number, ModbusDeviceConn>>(new Map())
 
-	const loadDeviceInfo = async (deviceId: number): Promise<Device | null> => {
-		if (deviceCache.value.has(deviceId)) return deviceCache.value.get(deviceId)!
+	const loadDeviceInfo = async (
+		deviceId: number,
+		options?: { force?: boolean }
+	): Promise<Device | null> => {
+		if (!options?.force && deviceCache.value.has(deviceId)) {
+			return deviceCache.value.get(deviceId)!
+		}
 		try {
 			const result = await deviceApi.getDevice(deviceId)
 			const device = result.device
 			deviceCache.value.set(deviceId, device)
 			const cfg = extractModbusDeviceConfig(device)
 			if (cfg) deviceConfigCache.value.set(deviceId, cfg)
+			else deviceConfigCache.value.delete(deviceId)
 			return device
 		} catch (error) {
 			handleError(error, `載入設備 ${deviceId} 失敗`)
