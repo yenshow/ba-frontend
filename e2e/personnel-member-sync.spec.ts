@@ -1,4 +1,4 @@
-import { test, expect, type Page, type APIRequestContext } from "@playwright/test"
+import { test, expect, type Page, type Locator, type APIRequestContext } from "@playwright/test"
 import { apiBase, unwrap } from "./helpers/http"
 import { loginApiToken } from "./helpers/apiClient"
 import {
@@ -73,10 +73,8 @@ const pollPlateSyncUntilSettled = async (
 	throw new Error(`plate sync poll timeout: location ${locationId}`)
 }
 
-const parseLocationIdFromMembersPut = (url: string) => {
-	const match = url.match(/\/personnel\/locations\/(\d+)\/members/)
-	return match ? Number(match[1]) : null
-}
+const membersEndpoint = /^\/api\/personnel\/locations\/(\d+)\/members$/
+const floorsEndpoint = /^\/api\/elevator\/locations\/(\d+)\/floor-access$/
 
 const selectLocationForManageButton = async (page: Page, manageButton: string) => {
 	const expandBtn = page.getByRole("button", { name: "展開總覽" })
@@ -101,34 +99,56 @@ const selectLocationForManageButton = async (page: Page, manageButton: string) =
 	return false
 }
 
-const waitApplyButtonIdle = async (dialog: ReturnType<Page["getByRole"]>) => {
-	await expect(dialog.getByRole("button", { name: "套用權限" })).not.toHaveText("處理中…", {
-		timeout: SYNC_TIMEOUT_MS,
-	})
-}
-
-const restoreMemberCheckbox = async (
+const withPermissionChange = async (
 	page: Page,
-	dialog: ReturnType<Page["getByRole"]>,
-	checkbox: ReturnType<Page["locator"]>,
-	wasChecked: boolean,
+	dialog: Locator,
+	checkbox: Locator,
+	endpoint: RegExp,
+	verify: (sync: {
+		jobId?: string
+		plateTriggered?: boolean
+		locationId: number
+	}) => Promise<void>,
 ) => {
+	const warnings = page.getByRole("dialog", { name: "同步結果與警告", exact: true })
+	await page.addLocatorHandler(warnings, async () => {
+		await warnings.getByRole("button", { name: "關閉", exact: true }).click()
+	})
+	const apply = dialog.getByRole("button", { name: "套用權限", exact: true })
+	const original = await checkbox.isChecked()
+	const submit = async (checked: boolean) => {
+		await checkbox.setChecked(checked, { timeout: 30_000 })
+		const [response] = await Promise.all([
+			page.waitForResponse(
+				(res) => res.request().method() === "PUT" && endpoint.test(new URL(res.url()).pathname),
+				{ timeout: 30_000 },
+			),
+			apply.click({ timeout: 30_000 }),
+		])
+		expect(response.status(), response.ok() ? undefined : await response.text()).toBe(200)
+		return response
+	}
+
 	try {
-		const restorePut = page.waitForResponse(
-			(res) =>
-				res.url().includes("/members") &&
-				res.request().method() === "PUT" &&
-				res.ok(),
-			{ timeout: 60_000 },
-		)
-		if ((await checkbox.isChecked()) !== wasChecked) {
-			await checkbox.click({ force: true })
+		const response = await submit(!original)
+		const body = (await response.json()) as { data: {
+			deviceSync?: { jobId?: string }
+			plateSync?: { triggered?: boolean }
+		} }
+		await verify({
+			jobId: body.data.deviceSync?.jobId,
+			plateTriggered: body.data.plateSync?.triggered,
+			locationId: Number(new URL(response.url()).pathname.match(endpoint)?.[1]),
+		})
+	} finally {
+		try {
+			await test.step("還原權限", async () => {
+				await submit(original)
+				await expect(apply).toBeEnabled({ timeout: 30_000 })
+			})
+		} finally {
+			await page.removeLocatorHandler(warnings)
 		}
-		await dialog.getByRole("button", { name: "套用權限" }).click({ force: true })
-		await restorePut
-		await waitApplyButtonIdle(dialog)
-	} catch {
-		// 還原失敗不阻擋主流程
 	}
 }
 
@@ -154,35 +174,9 @@ test.describe("地點名單 — 修改 + 設備同步", () => {
 
 		const firstCheckbox = dialog.locator('input[type="checkbox"]').first()
 		await expect(firstCheckbox).toBeVisible({ timeout: 15_000 })
-		const wasChecked = await firstCheckbox.isChecked()
-
-		const membersPut = page.waitForResponse(
-			(res) =>
-				res.url().includes("/api/personnel/locations/") &&
-				res.url().includes("/members") &&
-				res.request().method() === "PUT" &&
-				res.ok(),
-			{ timeout: 60_000 },
-		)
-
-		await firstCheckbox.click({ force: true })
-		await dialog.getByRole("button", { name: "套用權限" }).click({ force: true })
-
-		const putRes = await membersPut
-		const putBody = (await putRes.json()) as {
-			data?: { deviceSync?: { jobId?: string } }
-			deviceSync?: { jobId?: string }
-		}
-		const jobId = putBody.data?.deviceSync?.jobId ?? putBody.deviceSync?.jobId
-
-		await waitApplyButtonIdle(dialog)
-
-		if (jobId) {
-			const job = await pollPersonnelSyncJob(request, token, jobId)
-			expect(job.status).toBe("completed")
-		}
-
-		await restoreMemberCheckbox(page, dialog, firstCheckbox, wasChecked)
+		await withPermissionChange(page, dialog, firstCheckbox, membersEndpoint, async ({ jobId }) => {
+			if (jobId) await pollPersonnelSyncJob(request, token, jobId)
+		})
 
 		await closeDialogByAria(page)
 		await dismissToasts(page)
@@ -208,46 +202,17 @@ test.describe("地點名單 — 修改 + 設備同步", () => {
 
 		const firstCheckbox = dialog.locator('input[type="checkbox"]').first()
 		await expect(firstCheckbox).toBeVisible({ timeout: 15_000 })
-		const wasChecked = await firstCheckbox.isChecked()
-
-		const membersPut = page.waitForResponse(
-			(res) =>
-				res.url().includes("/api/personnel/locations/") &&
-				res.url().includes("/members") &&
-				res.request().method() === "PUT" &&
-				res.ok(),
-			{ timeout: 60_000 },
+		await withPermissionChange(
+			page,
+			dialog,
+			firstCheckbox,
+			membersEndpoint,
+			async ({ jobId, plateTriggered, locationId }) => {
+				expect(plateTriggered || jobId).toBeTruthy()
+				if (jobId) await pollPersonnelSyncJob(request, token, jobId)
+				else await pollPlateSyncUntilSettled(request, token, locationId, 45_000)
+			},
 		)
-
-		await firstCheckbox.click({ force: true })
-		await dialog.getByRole("button", { name: "套用權限" }).click({ force: true })
-
-		const putRes = await membersPut
-		const putBody = (await putRes.json()) as {
-			data?: { plateSync?: { triggered?: boolean }; deviceSync?: { jobId?: string } }
-			plateSync?: { triggered?: boolean }
-			deviceSync?: { jobId?: string }
-		}
-		const plateTriggered =
-			putBody.data?.plateSync?.triggered ?? putBody.plateSync?.triggered ?? false
-		const personnelJobId = putBody.data?.deviceSync?.jobId ?? putBody.deviceSync?.jobId
-		const locationId = parseLocationIdFromMembersPut(putRes.url())
-
-		await waitApplyButtonIdle(dialog)
-
-		expect(plateTriggered || personnelJobId).toBeTruthy()
-
-		if (personnelJobId) {
-			await pollPersonnelSyncJob(request, token, personnelJobId)
-		} else if (plateTriggered && locationId != null) {
-			try {
-				await pollPlateSyncUntilSettled(request, token, locationId, 45_000)
-			} catch {
-				// 設備離線時車牌可能維持 pending；UI 已解鎖即視為 sync 流程跑完
-			}
-		}
-
-		await restoreMemberCheckbox(page, dialog, firstCheckbox, wasChecked)
 
 		await closeDialogByAria(page)
 		await dismissToasts(page)
@@ -273,60 +238,13 @@ test.describe("地點名單 — 修改 + 設備同步", () => {
 
 		const firstPerson = dialog.locator('input[type="checkbox"]').first()
 		await expect(firstPerson).toBeVisible({ timeout: 15_000 })
-		await firstPerson.click({ force: true })
+		await firstPerson.check()
 
 		const firstFloor = dialog.getByRole("checkbox", { name: /^授權 / }).first()
 		await expect(firstFloor).toBeVisible({ timeout: 15_000 })
-		const wasChecked = await firstFloor.isChecked()
-
-		const floorPut = page.waitForResponse(
-			(res) =>
-				res.url().includes("/api/elevator/locations/") &&
-				res.url().includes("/floor-access") &&
-				res.request().method() === "PUT" &&
-				res.ok(),
-			{ timeout: 60_000 },
-		)
-
-		await firstFloor.click({ force: true })
-		await dialog.getByRole("button", { name: "套用權限" }).click({ force: true })
-
-		const putRes = await floorPut
-		const putBody = (await putRes.json()) as {
-			data?: { deviceSync?: { jobId?: string } }
-			deviceSync?: { jobId?: string }
-		}
-		const jobId = putBody.data?.deviceSync?.jobId ?? putBody.deviceSync?.jobId
-
-		await waitApplyButtonIdle(dialog)
-
-		if (jobId) {
-			try {
-				const job = await pollElevatorSyncJob(request, token, jobId, 45_000)
-				expect(job?.status).toBe("completed")
-			} catch {
-				// 設備離線時 UI 可能已顯示錯誤但仍解鎖
-			}
-		}
-
-		// 還原樓層勾選
-		try {
-			const restorePut = page.waitForResponse(
-				(res) =>
-					res.url().includes("/floor-access") &&
-					res.request().method() === "PUT" &&
-					res.ok(),
-				{ timeout: 60_000 },
-			)
-			if ((await firstFloor.isChecked()) !== wasChecked) {
-				await firstFloor.click({ force: true })
-			}
-			await dialog.getByRole("button", { name: "套用權限" }).click({ force: true })
-			await restorePut
-			await waitApplyButtonIdle(dialog)
-		} catch {
-			// 還原失敗不阻擋主流程
-		}
+		await withPermissionChange(page, dialog, firstFloor, floorsEndpoint, async ({ jobId }) => {
+			if (jobId) await pollElevatorSyncJob(request, token, jobId, 45_000)
+		})
 
 		await closeDialogByAria(page)
 		await dismissToasts(page)

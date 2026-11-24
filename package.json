@@ -8,6 +8,7 @@
 		"generate": "nuxt generate",
 		"preview": "nuxt preview",
 		"postinstall": "nuxt prepare",
+		"typecheck": "nuxt typecheck",
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui"
 	},
@@ -22,8 +23,7 @@
 		"qrcode": "^1.5.4",
 		"socket.io-client": "^4.8.3",
 		"vue": "^3.5.22",
-		"vue-chartjs": "^5.3.3",
-		"vue-router": "^4.6.3"
+		"vue-chartjs": "^5.3.3"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.62.1",
@@ -33,6 +33,6 @@
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"prettier-plugin-vue": "^1.1.6",
 		"typescript": "^5.8.3",
-		"vue-tsc": "^2.2.8"
+		"vue-tsc": "~2.2.10"
 	}
 }

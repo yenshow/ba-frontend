@@ -22,8 +22,10 @@ test.describe("影像監控 /access-control/surveillance", () => {
 
 		await expect(page.getByRole("button", { name: "1 畫面" })).toBeVisible({ timeout: 20_000 })
 		await expect(page.getByRole("button", { name: "4 畫面" })).toBeVisible()
-		await expect(page.getByRole("button", { name: "即時" })).toBeVisible()
-		await expect(page.getByRole("button", { name: "回放" })).toBeVisible()
+		const liveTab = page.getByRole("tab", { name: "即時", exact: true })
+		const playbackTab = page.getByRole("tab", { name: "回放", exact: true })
+		await expect(liveTab).toHaveAttribute("aria-selected", "true")
+		await expect(playbackTab).toBeVisible()
 		await expect(page.getByRole("heading", { name: "來源列表" })).toBeVisible()
 		await page.getByRole("button", { name: "4 畫面" }).click({ force: true })
 
@@ -36,7 +38,8 @@ test.describe("影像監控 /access-control/surveillance", () => {
 				.first(),
 		).toBeVisible({ timeout: 20_000 })
 
-		await page.getByRole("button", { name: "回放" }).click({ force: true })
+		await playbackTab.click()
+		await expect(playbackTab).toHaveAttribute("aria-selected", "true")
 		await expect(page.getByRole("button", { name: "9 畫面" })).toHaveCount(0)
 		await expect(page.getByRole("button", { name: "16 畫面" })).toHaveCount(0)
 		await expect(page.getByRole("button", { name: "1 畫面" })).toBeVisible()

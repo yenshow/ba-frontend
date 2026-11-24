@@ -152,7 +152,7 @@
 
 <script setup lang="ts">
 import type { LightingZone, LightingLocation } from "~/types/lighting"
-import type { SystemUiStatus } from "~/utils/monitoringStatus"
+import { systemUiStatusToText, type SystemUiStatus } from "~/utils/monitoringStatus"
 import StatusCenterCollapsedMore from "~/components/common/StatusCenterCollapsedMore.vue"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { compareZonesLoose } from "~/utils/sortOrder"
@@ -184,13 +184,6 @@ const emit = defineEmits<{
 	toggle: [areaId: string, isRunning: boolean]
 	"zone-selected": [zoneId: string]
 }>()
-
-const statusLabels: Record<SystemUiStatus, string> = {
-	normal: "正常",
-	warning: "異常",
-	// 對外僅兩態：normal / warning（alarm 視為 warning）
-	alarm: "異常",
-}
 
 type PendingToggleState = {
 	nextIsRunning: boolean
@@ -264,7 +257,7 @@ const getLocationStatus = (locationId: string) => {
 		return {
 			isRunning: status.isRunning,
 			status: normalizedStatus,
-			healthLabel: statusLabels[normalizedStatus],
+			healthLabel: systemUiStatusToText(normalizedStatus),
 		}
 	}
 	return {

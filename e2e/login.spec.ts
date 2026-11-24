@@ -43,7 +43,7 @@ test.describe("登入表單 /login", () => {
 		await expect(page).toHaveURL(/\/login/)
 		// 鎖定 #login-form-error（勿用「帳號|密碼」全文匹配，會撞 label 假綠）
 		await expect(page.locator("#login-form-error")).toBeVisible({ timeout: 15_000 })
-		await expect(page.locator("#login-form-error")).toContainText(/登入失敗/)
+		await expect(page.locator("#login-form-error")).toHaveText("用戶名或密碼錯誤")
 
 		await guards.assertClean()
 	})

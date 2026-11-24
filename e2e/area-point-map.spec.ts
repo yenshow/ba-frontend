@@ -17,15 +17,13 @@ test.describe("全區點位圖 /core/area-point-map", () => {
 		await dismissToasts(page)
 		await expect(page.getByText("載入中...")).toHaveCount(0, { timeout: 30_000 })
 
-		const emptyMap = page.getByText(/沒有可檢視的地圖系統|尚無區域資料/)
-		if (await emptyMap.isVisible().catch(() => false)) {
-			await expect(emptyMap).toBeVisible()
-		} else {
-			await expect(page.locator("aside button").first()).toBeVisible({ timeout: 15_000 })
-		}
+		const emptyMap = page.getByText(/沒有可檢視的地圖系統|尚無區域資料/).filter({ visible: true })
+		await expect(page.locator("aside button:visible").or(emptyMap).first()).toBeVisible({
+			timeout: 15_000,
+		})
 
 		await expect(
-			page.getByRole("button", { name: "地點管理" }).or(emptyMap),
+			page.getByRole("button", { name: "地點管理" }).or(emptyMap).first(),
 		).toBeVisible({ timeout: 15_000 })
 
 		await guards.assertClean()

@@ -47,9 +47,9 @@ test.describe("環境設定 record-export CRUD", () => {
 
 			await expect(page.getByText(name, { exact: true })).toBeVisible({ timeout: 20_000 })
 			await dismissToasts(page)
-			const row = page.locator("tr, li, div").filter({ hasText: name }).first()
-			await row.getByRole("button", { name: "刪除" }).click({ force: true })
-			await confirmDangerDialog(page, "確定")
+			const rule = page.getByText(name, { exact: true }).locator("..")
+			await rule.getByRole("button", { name: "刪除規則", exact: true }).click()
+			await confirmDangerDialog(page, "刪除")
 			await expect(page.getByText(name, { exact: true })).toHaveCount(0, { timeout: 20_000 })
 			ruleId = null
 		} finally {

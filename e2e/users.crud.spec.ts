@@ -50,7 +50,7 @@ test.describe("用戶管理 safe CRUD", () => {
 			})
 			const nameInput = page.locator("label").filter({ hasText: /^用戶名/ }).locator("input")
 			await fillVueInput(nameInput, nameUpdated)
-			await page.getByRole("button", { name: "更新" }).click({ force: true })
+			await page.getByRole("button", { name: "儲存用戶", exact: true }).click()
 			await expect(page.getByRole("heading", { name: "編輯用戶" })).toHaveCount(0, {
 				timeout: 20_000,
 			})
@@ -58,8 +58,8 @@ test.describe("用戶管理 safe CRUD", () => {
 
 			await dismissToasts(page)
 			await rowContainingText(page, nameUpdated)
-				.getByRole("button", { name: "刪除" })
-				.click({ force: true })
+				.getByRole("button", { name: "刪除用戶", exact: true })
+				.click()
 			await confirmDangerDialog(page, "刪除")
 			await expect(page.getByText(nameUpdated, { exact: true })).toHaveCount(0, {
 				timeout: 20_000,

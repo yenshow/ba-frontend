@@ -33,13 +33,12 @@ test.describe("水電設施（樓層平面）", () => {
 			await closeDialogByAria(page)
 
 			if (deepEdit) {
-				const editBtn = page.getByRole("button", { name: "編輯定位" })
+				const editBtn = page.getByRole("button", { name: "編輯定位", exact: true })
 				await expect(editBtn).toBeVisible({ timeout: 20_000 })
-				await expect(editBtn).toContainText("編輯定位")
-				await editBtn.click({ force: true })
-				await expect(editBtn).toContainText("完成編輯", { timeout: 10_000 })
-				await editBtn.click({ force: true })
-				await expect(editBtn).toContainText("編輯定位", { timeout: 10_000 })
+				await editBtn.click()
+				await expect(editBtn).toHaveText("完成編輯", { timeout: 10_000 })
+				await editBtn.click()
+				await expect(editBtn).toHaveText("編輯定位", { timeout: 10_000 })
 			}
 
 			if (controlHint === "light") {
@@ -50,8 +49,7 @@ test.describe("水電設施（樓層平面）", () => {
 			if (controlHint === "hvac") {
 				await expect(
 					page
-						.getByText("空調開啟")
-						.or(page.getByText("空調關閉"))
+						.getByRole("img", { name: /空調開啟|空調關閉/ })
 						.or(page.getByText("尚無"))
 						.first(),
 				).toBeVisible({ timeout: 20_000 })
@@ -135,7 +133,7 @@ test.describe("能源管理 /utilities/energy", () => {
 			await openDialogByButton(page, "開啟設定", "能源設定")
 
 			// 表計異常（devices 區塊預設展開）
-			await expect(page.getByText("表計異常")).toBeVisible()
+			await expect(page.getByRole("heading", { name: "表計異常", exact: true })).toBeVisible()
 			const staleInput = page
 				.locator("label")
 				.filter({ hasText: /^逾時（分鐘）$/ })

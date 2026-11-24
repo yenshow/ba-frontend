@@ -8,7 +8,7 @@ import {
 	openZoneManagementDialog,
 	suppressAlertToasts,
 	visitSystemPage,
-	zoneManagementPanel,
+	zoneManagementEntry,
 } from "./selectors"
 import {
 	createE2eZoneApi,
@@ -76,7 +76,7 @@ export const runZoneSafeCrud = async (
 
 		await openMgmt()
 		await expect(
-			zoneManagementPanel(page).getByRole("heading", { name: nameCreate, exact: true }),
+			zoneManagementEntry(page, nameCreate),
 		).toBeVisible({ timeout: 15_000 })
 		await closeDialogByAria(page)
 
@@ -89,7 +89,7 @@ export const runZoneSafeCrud = async (
 		await suppressAlertToasts(page)
 		await openMgmt()
 		await expect(
-			zoneManagementPanel(page).getByRole("heading", { name: nameUpdated, exact: true }),
+			zoneManagementEntry(page, nameUpdated),
 		).toBeVisible({ timeout: 15_000 })
 
 		await deleteZoneInDialog(page, nameUpdated)

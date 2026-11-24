@@ -51,6 +51,7 @@ export default defineConfig({
 			testMatch: /home\.spec\.ts/,
 			use: {
 				...devices["Desktop Firefox"],
+				launchOptions: { timeout: 20_000 },
 				storageState: authFile,
 			},
 		},

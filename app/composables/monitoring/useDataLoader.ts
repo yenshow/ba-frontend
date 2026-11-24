@@ -50,13 +50,12 @@ export const useDataLoader = <T, P extends Record<string, unknown>>(
   const isLoading = ref(false);
   const errorMessage = ref<string | null>(null);
 
-  // 內部請求去重旗標
-  let isRequesting = false;
+  let revision = 0;
+  let pending: { params: P; revision: number } | null = null;
+  let activeLoad: Promise<void> | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
-  const internalLoad = async (params: P) => {
-    if (isRequesting) return;
-    isRequesting = true;
+  const fetchPage = async (request: { params: P; revision: number }) => {
     isLoading.value = true;
     errorMessage.value = null;
 
@@ -68,8 +67,8 @@ export const useDataLoader = <T, P extends Record<string, unknown>>(
     const startTime = Date.now();
 
     try {
-      const { items, total: t } = await fetcher({ ...params, limit: pageSize, offset: offset.value } as P);
-      
+      const { items, total: t } = await fetcher(request.params);
+      if (request.revision !== revision) return;
       // 計算已用時間，確保至少顯示最小延遲時間以緩和閃爍
       const elapsed = Date.now() - startTime;
       const remainingDelay = Math.max(0, minLoadingDelay - elapsed);
@@ -78,14 +77,35 @@ export const useDataLoader = <T, P extends Record<string, unknown>>(
         await new Promise((resolve) => setTimeout(resolve, remainingDelay));
       }
 
+      if (request.revision !== revision) return;
       data.value = items;
       if (typeof t === "number") total.value = t;
     } catch (err) {
-      errorMessage.value = resolveLoadErrorMessage(err, onError);
-    } finally {
-      isLoading.value = false;
-      isRequesting = false;
+      if (request.revision === revision) {
+        errorMessage.value = resolveLoadErrorMessage(err, onError);
+      }
     }
+  };
+
+  const internalLoad = (params: P, requestRevision = ++revision): Promise<void> => {
+    pending = {
+      params: { ...params, limit: pageSize, offset: offset.value } as P,
+      revision: requestRevision,
+    };
+    if (activeLoad) return activeLoad;
+    activeLoad = Promise.resolve().then(async () => {
+      try {
+        while (pending) {
+          const request = pending;
+          pending = null;
+          if (request.revision === revision) await fetchPage(request);
+        }
+      } finally {
+        isLoading.value = false;
+        activeLoad = null;
+      }
+    });
+    return activeLoad;
   };
 
   const load = (params: P, immediate = false): void | Promise<void> => {
@@ -96,7 +116,11 @@ export const useDataLoader = <T, P extends Record<string, unknown>>(
     if (immediate) {
       return internalLoad(params);
     }
-    timer = setTimeout(() => void internalLoad(params), debounce);
+    const requestRevision = ++revision;
+    timer = setTimeout(() => {
+      timer = null;
+      void internalLoad(params, requestRevision);
+    }, debounce);
   };
 
   const resetPage = () => {
@@ -106,19 +130,21 @@ export const useDataLoader = <T, P extends Record<string, unknown>>(
   const nextPage = (params: P) => {
     if (offset.value + pageSize < total.value) {
       offset.value += pageSize;
-      void internalLoad(params);
+      void load(params, true);
     }
   };
 
   const prevPage = (params: P) => {
     if (offset.value > 0) {
       offset.value = Math.max(0, offset.value - pageSize);
-      void internalLoad(params);
+      void load(params, true);
     }
   };
 
   // 組件卸載時清理定時器
   onBeforeUnmount(() => {
+    revision++;
+    pending = null;
     if (timer) {
       clearTimeout(timer);
       timer = null;

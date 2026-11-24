@@ -8,6 +8,7 @@ import type {
 	LightingSystemConfig,
 	DrainageSystemConfig,
 	FireSystemConfig,
+	SecuritySystemConfig,
 	PeopleCountingSystemConfig,
 	VehicleAccessSystemConfig,
 	PowerSystemConfig,
@@ -285,34 +286,26 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 				statusPoints: {},
 			}
 		case "security": {
-			const raw =
+			const { dataSource: rawDataSource, ...raw } =
 				config && typeof config === "object"
-					? (config as FireSystemConfig & {
-							accessDeviceIds?: number[]
-							dataSource?: import("~/types/security").SecurityDataSource
-						})
-					: ({} as FireSystemConfig & {
-							accessDeviceIds?: number[]
-							dataSource?: import("~/types/security").SecurityDataSource
-						})
+					? (config as SecuritySystemConfig)
+					: ({} as SecuritySystemConfig)
 			const accessDeviceIds = Array.isArray(raw.accessDeviceIds)
 				? raw.accessDeviceIds.map(Number).filter((n) => Number.isFinite(n) && n > 0)
 				: []
 			const dataSource =
-				raw.dataSource === "di" ||
-				raw.dataSource === "access_control" ||
-				raw.dataSource === "both"
-					? raw.dataSource
+				rawDataSource === "di" ||
+				rawDataSource === "access_control" ||
+				rawDataSource === "both"
+					? rawDataSource
 					: undefined
 			const base = isDrainageSystemConfig(config)
 				? raw
 				: {
+						...raw,
 						equipmentKind: "sensor" as const,
 						viewCategory: "perimeter",
 						statusPoints: {},
-						...(raw.deviceId != null ? { deviceId: raw.deviceId } : {}),
-						...(raw.location ? { location: raw.location } : {}),
-						...(raw.modbus ? { modbus: raw.modbus } : {}),
 					}
 			return { ...base, accessDeviceIds, ...(dataSource ? { dataSource } : {}) }
 		}
@@ -853,18 +846,12 @@ export function unifiedToSecurityZone(
 			if (!sys || !sys.config || typeof sys.config !== "object") {
 				return []
 			}
-			const cfg = sys.config as FireSystemConfig & {
-				accessDeviceIds?: number[]
-				dataSource?: import("~/types/security").SecurityDataSource
-				armingMode?: import("~/types/security").SecurityArmingMode
-				entryDelaySec?: number
-				exitDelaySec?: number
-			}
+			const cfg = sys.config as SecuritySystemConfig
 			const accessDeviceIds = Array.isArray(cfg.accessDeviceIds)
 				? cfg.accessDeviceIds.map(Number).filter((n) => n > 0)
 				: []
 			const hasShape =
-				isDrainageSystemConfig(cfg) ||
+				Boolean(isDrainageSystemConfig(cfg)) ||
 				accessDeviceIds.length > 0 ||
 				"deviceId" in cfg ||
 				"location" in cfg ||
@@ -993,7 +980,7 @@ export function securityLocationToUnified(
 					armingMode: location.armingMode ?? "immediate",
 					entryDelaySec: location.entryDelaySec,
 					exitDelaySec: location.exitDelaySec,
-				} as FireSystemConfig,
+				} satisfies SecuritySystemConfig,
 			},
 		],
 	}

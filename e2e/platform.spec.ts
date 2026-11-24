@@ -109,11 +109,14 @@ test.describe("平台管理", () => {
 		// 開「新增設定」Dialog 後取消（不儲存、不測連線）
 		await dismissToasts(page)
 		await page.getByRole("button", { name: "新增設定" }).click({ force: true })
-		await expect(page.getByRole("heading", { name: "新增資料庫對接" })).toBeVisible({
+		const connectionDialog = page.locator(".dialog-panel-bg").filter({
+			has: page.getByRole("heading", { name: "新增資料庫對接", exact: true }),
+		})
+		await expect(connectionDialog).toBeVisible({
 			timeout: 10_000,
 		})
-		await page.getByRole("button", { name: "取消" }).click({ force: true })
-		await expect(page.getByRole("heading", { name: "新增資料庫對接" })).toHaveCount(0, {
+		await connectionDialog.getByRole("button", { name: "取消", exact: true }).click()
+		await expect(connectionDialog).toHaveCount(0, {
 			timeout: 10_000,
 		})
 
@@ -128,11 +131,14 @@ test.describe("平台管理", () => {
 			.toBe("true")
 		await dismissToasts(page)
 		await page.getByRole("button", { name: "新增規則" }).click({ force: true })
-		await expect(page.getByRole("heading", { name: "新增規則" })).toBeVisible({
+		const ruleDialog = page.locator(".dialog-panel-bg").filter({
+			has: page.getByRole("heading", { name: "新增規則", exact: true }),
+		})
+		await expect(ruleDialog).toBeVisible({
 			timeout: 10_000,
 		})
-		await page.getByRole("button", { name: "取消" }).click({ force: true })
-		await expect(page.getByRole("heading", { name: "新增規則" })).toHaveCount(0, {
+		await ruleDialog.getByRole("button", { name: "取消", exact: true }).click()
+		await expect(ruleDialog).toHaveCount(0, {
 			timeout: 10_000,
 		})
 

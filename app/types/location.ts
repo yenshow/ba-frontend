@@ -7,6 +7,7 @@ import type {
 	ElevatorLogicalFloor,
 	ElevatorPanelConfig,
 } from "~/utils/elevatorFloorModel"
+import type { SecurityLocation } from "~/types/security"
 
 /**
  * 系統類型
@@ -62,6 +63,7 @@ export type SystemConfig =
 	| FireSystemConfig
 	| EmergencyRescueSystemConfig
 	| SmokeAlarmSystemConfig
+	| SecuritySystemConfig
 	| PeopleCountingSystemConfig
 	| RollCallSystemConfig
 	| VehicleAccessSystemConfig
@@ -201,6 +203,21 @@ export type EmergencyRescueSystemConfig = DrainageSystemConfig;
 
 /** 煙霧警報（與消防／排水相同點位結構；預設檢視分類 smoke） */
 export type SmokeAlarmSystemConfig = DrainageSystemConfig;
+
+export type SecuritySystemConfig = Pick<
+	SecurityLocation,
+	| "dataSource"
+	| "deviceId"
+	| "location"
+	| "modbus"
+	| "equipmentKind"
+	| "viewCategory"
+	| "statusPoints"
+	| "accessDeviceIds"
+	| "armingMode"
+	| "entryDelaySec"
+	| "exitDelaySec"
+>;
 
 /**
  * 人流統計系統配置
