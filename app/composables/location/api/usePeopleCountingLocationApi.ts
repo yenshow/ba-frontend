@@ -94,6 +94,10 @@ export const usePeopleCountingLocationApi = () => {
 			personGroupIds: number[];
 			entryDoorIds: number[];
 			exitDoorIds: number[];
+			entryEventCameraDeviceId?: number | null;
+			exitEventCameraDeviceId?: number | null;
+			entryEventCameraNvrTrackId?: number | null;
+			exitEventCameraNvrTrackId?: number | null;
 		}) => {
 			const response = await request<{ message: string; location: PeopleCountingLocation }>(
 				"/people-counting/locations",
@@ -113,6 +117,10 @@ export const usePeopleCountingLocationApi = () => {
 				personGroupIds?: number[];
 				entryDoorIds?: number[];
 				exitDoorIds?: number[];
+				entryEventCameraDeviceId?: number | null;
+				exitEventCameraDeviceId?: number | null;
+				entryEventCameraNvrTrackId?: number | null;
+				exitEventCameraNvrTrackId?: number | null;
 			}
 		) => {
 			const response = await request<{ message: string; location: PeopleCountingLocation }>(

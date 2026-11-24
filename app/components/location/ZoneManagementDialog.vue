@@ -1095,6 +1095,7 @@ const saveAllChanges = async () => {
 			requireImageUrl: props.requireImageUrl,
 			zone,
 			locations,
+			surveillanceCameras: surveillanceCameraDevices.value,
 		})
 		if (!result.isValid) {
 			errorMessage.value = joinFormErrors(result.errors)

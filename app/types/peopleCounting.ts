@@ -21,8 +21,10 @@ export interface PeopleCountingLocation {
 	exitDeviceIds?: number[]
 	/** access_control：入口進出事件調閱攝影機 */
 	entryEventCameraDeviceId?: number | null
+	entryEventCameraNvrTrackId?: number | null
 	/** access_control：出口進出事件調閱攝影機 */
 	exitEventCameraDeviceId?: number | null
+	exitEventCameraNvrTrackId?: number | null
 	/** 攝影機設備 IDs（dataSource 為 isapi_camera 且人流統計模式） */
 	cameraDeviceIds?: number[]
 	/** 人臉辨識：進場攝影機 */

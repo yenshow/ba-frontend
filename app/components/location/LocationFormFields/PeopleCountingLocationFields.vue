@@ -230,24 +230,33 @@
 
 			<div v-if="canUseEventCameraLinkage" class="mt-3 border-t border-white/10 pt-3">
 				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					<label :class="fieldLabelClass">
-						<span>入口調閱攝影機</span>
-						<FilterDropdown
-							v-model="entryEventCameraSelect"
-							:options="eventCameraDeviceOptions"
-							placeholder="不設定"
-							text-size="text-sm 2xl:text-base"
-						/>
-					</label>
-					<label :class="fieldLabelClass">
-						<span>出口調閱攝影機</span>
-						<FilterDropdown
-							v-model="exitEventCameraSelect"
-							:options="eventCameraDeviceOptions"
-							placeholder="不設定"
-							text-size="text-sm 2xl:text-base"
-						/>
-					</label>
+					<div v-for="field in eventCameraFields" :key="field.deviceKey">
+						<label :class="fieldLabelClass">
+							<span>{{ field.label }}調閱攝影機</span>
+							<FilterDropdown
+								:model-value="String(localLocation[field.deviceKey] ?? '')"
+								:options="eventCameraDeviceOptions"
+								placeholder="不設定"
+								text-size="text-sm 2xl:text-base"
+								@update:model-value="setEventCameraDevice(field, $event)"
+							/>
+						</label>
+						<template v-if="isEventCameraNvr(localLocation[field.deviceKey])">
+							<label :class="[fieldLabelClass, 'mt-2']">
+								<span>{{ field.label }} NVR 通道 <span class="text-amber-300">*</span></span>
+								<FilterDropdown
+									:model-value="String(localLocation[field.trackKey] ?? '')"
+									:options="eventCameraChannelOptions(localLocation[field.deviceKey])"
+									placeholder="請選擇通道"
+									text-size="text-sm 2xl:text-base"
+									@update:model-value="setEventCameraTrack(field, $event)"
+								/>
+							</label>
+							<p v-if="eventCameraChannelStatus(localLocation[field.deviceKey])" class="mt-1 text-xs">
+								{{ eventCameraChannelStatus(localLocation[field.deviceKey]) }}
+							</p>
+						</template>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -557,6 +566,9 @@
 import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import type { PeopleCountingLocation } from "~/types/peopleCounting"
 import type { Device } from "~/types/device"
+import { isNvrCamera } from "~/utils/nvrWebUrl"
+import type { NvrVirtualChannel } from "~/types/surveillance"
+import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi"
 import {
 	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
 	TOGGLEABLE_LOG_COLUMN_KEYS,
@@ -632,6 +644,7 @@ const emit = defineEmits<Emits>()
 
 const { enableYscpPeopleCounting } = useModuleRegistry()
 const { hasFeature } = useLicense()
+const dataSource = ref(storedPeopleCountingDataSource(props.location.dataSource))
 const canUseEventCameraLinkage = computed(
 	() => hasFeature("surveillance") && dataSource.value === "access_control"
 )
@@ -644,28 +657,80 @@ const eventCameraDeviceOptions = computed(() => [
 	})),
 ])
 
-const toEventCameraSelectValue = (id: number | null | undefined): string => {
-	if (id == null || !Number.isFinite(Number(id)) || Number(id) <= 0) return ""
-	return String(Math.trunc(Number(id)))
+const localLocation = ref<PeopleCountingLocation>({ ...props.location })
+
+const eventCameraFields = [
+	{ label: "入口", deviceKey: "entryEventCameraDeviceId", trackKey: "entryEventCameraNvrTrackId" },
+	{ label: "出口", deviceKey: "exitEventCameraDeviceId", trackKey: "exitEventCameraNvrTrackId" },
+] as const
+type EventCameraField = (typeof eventCameraFields)[number]
+
+const setEventCameraDevice = (field: EventCameraField, value: string) => {
+	const id = value ? Number(value) : null
+	if ((localLocation.value[field.deviceKey] ?? null) === id) return
+	localLocation.value[field.deviceKey] = id
+	localLocation.value[field.trackKey] = null
+	handleChange()
 }
 
-const entryEventCameraSelect = computed({
-	get: () => toEventCameraSelectValue(localLocation.value.entryEventCameraDeviceId),
-	set: (raw: string) => {
-		localLocation.value.entryEventCameraDeviceId = parseEventCameraSelect(raw)
-		handleChange()
-	},
-})
+const setEventCameraTrack = (field: EventCameraField, value: string) => {
+	localLocation.value[field.trackKey] = value ? Number(value) : null
+	handleChange()
+}
 
-const exitEventCameraSelect = computed({
-	get: () => toEventCameraSelectValue(localLocation.value.exitEventCameraDeviceId),
-	set: (raw: string) => {
-		localLocation.value.exitEventCameraDeviceId = parseEventCameraSelect(raw)
-		handleChange()
-	},
-})
+const nvrApi = useNvrApi()
+const nvrChannelLoads = reactive<Record<number, {
+	channels: NvrVirtualChannel[]
+	loading: boolean
+}>>({})
 
-const localLocation = ref<PeopleCountingLocation>({ ...props.location })
+const isEventCameraNvr = (deviceId?: number | null) =>
+	props.surveillanceCameraDevices.some(
+		(device) => device.id === deviceId && isNvrCamera(device)
+	)
+
+const loadNvrChannels = async (deviceId?: number | null) => {
+	if (deviceId == null || nvrChannelLoads[deviceId]) return
+
+	nvrChannelLoads[deviceId] = { channels: [], loading: true }
+	try {
+		const channels = await nvrApi.listChannels(deviceId)
+		nvrChannelLoads[deviceId] = {
+			channels: channels.filter((channel) => channel.liveTrackId != null && channel.liveTrackId > 0),
+			loading: false,
+		}
+	} catch {
+		delete nvrChannelLoads[deviceId]
+	}
+}
+
+const nvrChannelLoad = (deviceId?: number | null) =>
+	deviceId != null ? nvrChannelLoads[deviceId] : undefined
+
+const eventCameraChannelOptions = (deviceId?: number | null) => [
+	{ value: "", label: "請選擇通道" },
+	...(nvrChannelLoad(deviceId)?.channels ?? []).map((channel) => ({
+		value: String(channel.liveTrackId),
+		label: channel.channelId != null && channel.name !== `通道 ${channel.channelId}`
+			? `通道 ${channel.channelId} · ${channel.name}`
+			: channel.name,
+	})),
+]
+
+const eventCameraChannelStatus = (deviceId?: number | null) => {
+	const load = nvrChannelLoad(deviceId)
+	if (load?.loading) return "載入 NVR 通道中…"
+	if (load && load.channels.length === 0) return "此 NVR 目前沒有可用通道"
+	return ""
+}
+
+watch(
+	() => canUseEventCameraLinkage.value
+		? eventCameraFields.map(({ deviceKey }) => localLocation.value[deviceKey]).filter(isEventCameraNvr)
+		: [],
+	(ids) => ids.forEach((id) => { void loadNvrChannels(id) }),
+	{ immediate: true }
+)
 
 const draftStatLabels = () => draftEntryExitStatLabels(localLocation.value.statLabels)
 const statLabelEntry = ref(draftStatLabels().entry)
@@ -693,7 +758,6 @@ const selectCardOverlapClass =
 const dangerHintClass =
 	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm"
 const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm"
-const dataSource = ref(storedPeopleCountingDataSource(props.location.dataSource))
 const cameraMode = ref<PeopleCountingCameraMode>(
 	normalizePeopleCountingCameraMode(props.location.cameraMode)
 )
@@ -824,7 +888,9 @@ const handleDataSourceChange = () => {
 		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
 	} else if (dataSource.value === "isapi_camera") {
 		localLocation.value.entryEventCameraDeviceId = undefined
+		localLocation.value.entryEventCameraNvrTrackId = undefined
 		localLocation.value.exitEventCameraDeviceId = undefined
+		localLocation.value.exitEventCameraNvrTrackId = undefined
 		localLocation.value.personGroupIds = []
 		localLocation.value.entryDoorIds = []
 		localLocation.value.exitDoorIds = []
@@ -846,7 +912,9 @@ const handleDataSourceChange = () => {
 		localLocation.value.entryDeviceIds = []
 		localLocation.value.exitDeviceIds = []
 		localLocation.value.entryEventCameraDeviceId = undefined
+		localLocation.value.entryEventCameraNvrTrackId = undefined
 		localLocation.value.exitEventCameraDeviceId = undefined
+		localLocation.value.exitEventCameraNvrTrackId = undefined
 		localLocation.value.cameraDeviceIds = undefined
 		localLocation.value.preferRegion = undefined
 		localLocation.value.cameraMode = undefined
@@ -1043,14 +1111,6 @@ const handleToggleCamera = (deviceId: number) => {
 	else ids.push(deviceId)
 
 	handleChange()
-}
-
-const parseEventCameraSelect = (raw: string): number | null | undefined => {
-	const trimmed = String(raw || "").trim()
-	if (!trimmed) return null
-	const n = Number(trimmed)
-	if (!Number.isFinite(n) || n <= 0) return undefined
-	return Math.trunc(n)
 }
 
 const handleChange = () => {
