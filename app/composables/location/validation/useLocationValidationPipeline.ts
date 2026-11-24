@@ -1,3 +1,4 @@
+import type { Device } from "~/types/device";
 import type { SystemType, UnifiedLocation, UnifiedZone } from "~/types/location";
 import type { EnvironmentLocation } from "~/types/environment";
 import type { PeopleCountingLocation } from "~/types/peopleCounting";
@@ -61,6 +62,7 @@ export function useLocationValidationPipeline() {
 		requireImageUrl?: boolean;
 		zone: any;
 		locations: any[];
+		surveillanceCameras?: readonly Device[];
 	}): ValidationPipelineResult => {
 		const base = validateZoneBase({
 			zone: {
@@ -105,7 +107,10 @@ export function useLocationValidationPipeline() {
 					) {
 						break;
 					}
-					const r = pc.validatePeopleCountingLocation(loc as PeopleCountingLocation);
+					const r = pc.validatePeopleCountingLocation(
+						loc as PeopleCountingLocation,
+						args.surveillanceCameras
+					);
 					if (!r.isValid) {
 						errors.push(...r.errors.map(e => `地點「${loc.name}」：${e}`));
 					}

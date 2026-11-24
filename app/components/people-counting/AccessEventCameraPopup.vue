@@ -127,6 +127,7 @@ export type AccessEventCameraPopupItem = {
 	locationId: number
 	deviceId: number
 	cameraDeviceId: number
+	nvrTrackId?: number
 	zoneName?: string
 	locationName?: string
 	eventLabel?: string

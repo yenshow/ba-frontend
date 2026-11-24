@@ -215,8 +215,10 @@ export interface PeopleCountingSystemConfig {
 	exitDeviceIds?: number[];
 	/** access_control：入口進出事件調閱攝影機（devices.id，type camera） */
 	entryEventCameraDeviceId?: number | null;
+	entryEventCameraNvrTrackId?: number | null;
 	/** access_control：出口進出事件調閱攝影機 */
 	exitEventCameraDeviceId?: number | null;
+	exitEventCameraNvrTrackId?: number | null;
 	/** ISAPI 人流統計模式攝影機（devices.id）列表 */
 	cameraDeviceIds?: number[];
 	/** 人臉辨識：進場攝影機 */

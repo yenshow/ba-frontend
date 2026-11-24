@@ -3,6 +3,8 @@ import { useWebSocketEventSubscription } from "~/composables/websocket/useWebSoc
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useLicense } from "~/composables/core/useLicense"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi"
+import { isNvrCamera } from "~/utils/nvrWebUrl"
 import { PERM } from "~/config/permissionCodes"
 import type { AccessEventCameraPopupItem } from "~/components/people-counting/AccessEventCameraPopup.vue"
 import type { CameraStreamState } from "~/components/alerts/AlertCameraStreamSlots.vue"
@@ -16,6 +18,7 @@ type AccessControlWsPayload = {
 	deviceId?: number
 	deviceRole?: "entry" | "exit"
 	eventCameraDeviceId?: number
+	eventCameraNvrTrackId?: number
 	zoneName?: string
 	locationName?: string
 	eventLabel?: string
@@ -49,6 +52,7 @@ let streamLoadToken = 0
 
 export const useAccessEventCameraPopup = () => {
 	const deviceApi = useDeviceApi()
+	const nvrApi = useNvrApi()
 	const { hasFeature } = useLicense()
 	const { useWsModuleGate } = useAccessGate()
 	const canSubscribe = useWsModuleGate("people_counting", {
@@ -99,6 +103,18 @@ export const useAccessEventCameraPopup = () => {
 			if (token !== streamLoadToken) return
 			s.deviceName = deviceRes?.device?.name?.trim?.() || `設備 ${s.deviceId}`
 
+			if (s.nvrTrackId != null) {
+				const result = await nvrApi.startChannelStream(s.deviceId, s.nvrTrackId)
+				if (token !== streamLoadToken) return
+				s.webrtcUrl = result.webrtcUrl || ""
+				s.webrtcPort = result.webrtcPort
+				s.streamStatus = "running"
+				return
+			}
+			if (isNvrCamera(deviceRes?.device)) {
+				throw new Error("請在地點管理選擇 NVR 通道")
+			}
+
 			const status = await deviceApi.getStreamStatus(s.deviceId)
 			if (token !== streamLoadToken) return
 			if (status.status !== "running") {
@@ -119,11 +135,12 @@ export const useAccessEventCameraPopup = () => {
 		}
 	}
 
-	const loadStreamsForItem = async (cameraDeviceId: number) => {
+	const loadStreamsForItem = async (cameraDeviceId: number, nvrTrackId?: number) => {
 		const token = ++streamLoadToken
 		state.streams = [
 			{
 				deviceId: cameraDeviceId,
+				nvrTrackId,
 				deviceName: "",
 				webrtcUrl: "",
 				webrtcPort: undefined,
@@ -137,8 +154,8 @@ export const useAccessEventCameraPopup = () => {
 	const handleReloadStream = (deviceId: number) => {
 		const target = state.streams.find((s) => s.deviceId === deviceId)
 		if (!target) {
-			const camId = state.item?.cameraDeviceId
-			if (camId != null) void loadStreamsForItem(camId)
+			const item = state.item
+			if (item) void loadStreamsForItem(item.cameraDeviceId, item.nvrTrackId)
 			return
 		}
 		void startStreamOnState(target, streamLoadToken)
@@ -148,12 +165,13 @@ export const useAccessEventCameraPopup = () => {
 		if (!canShowPopup.value) return
 
 		const cameraDeviceId = toPositiveInt(payload.eventCameraDeviceId)
+		const nvrTrackId = toPositiveInt(payload.eventCameraNvrTrackId) ?? undefined
 		const locationId = toPositiveInt(payload.locationId)
 		const deviceId = toPositiveInt(payload.deviceId)
 		if (cameraDeviceId == null || locationId == null || deviceId == null) return
 
 		const now = Date.now()
-		const signature = `${locationId}:${deviceId}:${cameraDeviceId}`
+		const signature = `${locationId}:${deviceId}:${cameraDeviceId}:${nvrTrackId ?? ""}`
 		const eventLabel = resolveEventLabel(payload)
 		const zoneName = String(payload.zoneName || "").trim()
 		const locationName = String(payload.locationName || "").trim()
@@ -162,7 +180,8 @@ export const useAccessEventCameraPopup = () => {
 			state.item &&
 			state.item.locationId === locationId &&
 			state.item.deviceId === deviceId &&
-			state.item.cameraDeviceId === cameraDeviceId
+			state.item.cameraDeviceId === cameraDeviceId &&
+			state.item.nvrTrackId === nvrTrackId
 
 		if (sameItem && state.item) {
 			state.item.count += 1
@@ -174,11 +193,13 @@ export const useAccessEventCameraPopup = () => {
 			return
 		}
 
+		clearAutoCloseTimer()
 		state.item = {
 			key: `${signature}:${now}`,
 			locationId,
 			deviceId,
 			cameraDeviceId,
+			nvrTrackId,
 			zoneName,
 			locationName,
 			eventLabel,
@@ -186,8 +207,10 @@ export const useAccessEventCameraPopup = () => {
 		}
 		state.open = true
 		state.isFullscreen = false
-		await loadStreamsForItem(cameraDeviceId)
-		scheduleAutoClose()
+		const loading = loadStreamsForItem(cameraDeviceId, nvrTrackId)
+		const token = streamLoadToken
+		await loading
+		if (token === streamLoadToken) scheduleAutoClose()
 	}
 
 	const start = () => {

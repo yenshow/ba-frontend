@@ -4,6 +4,8 @@
  */
 
 import type { PeopleCountingLocation } from "~/types/peopleCounting"
+import type { Device } from "~/types/device";
+import { isNvrCamera } from "~/utils/nvrWebUrl";
 import { useLocationValidation } from "~/composables/location/validation/useBaseValidation"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { resolvePeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
@@ -80,7 +82,8 @@ export function usePeopleCountingLocationValidation() {
 	 * 驗證完整的地點資料（依 dataSource 分流：YSCP 驗證 personGroupIds/entryDoorId；門禁驗證 entryDeviceId）
 	 */
 	const validatePeopleCountingLocation = (
-		location: PeopleCountingLocation
+		location: PeopleCountingLocation,
+		surveillanceCameras: readonly Device[] = []
 	): PeopleCountingLocationValidationResult => {
 		const errors: string[] = []
 		const warnings: string[] = []
@@ -96,6 +99,15 @@ export function usePeopleCountingLocationValidation() {
 		if (personGroupIdsError) errors.push(personGroupIdsError)
 
 		if (dataSource === "access_control") {
+			for (const { label, deviceId, trackId } of [
+				{ label: "入口", deviceId: location.entryEventCameraDeviceId, trackId: location.entryEventCameraNvrTrackId },
+				{ label: "出口", deviceId: location.exitEventCameraDeviceId, trackId: location.exitEventCameraNvrTrackId },
+			]) {
+				const camera = surveillanceCameras.find((device) => device.id === deviceId)
+				if (isNvrCamera(camera) && trackId == null) {
+					errors.push(`請選擇${label}調閱的 NVR 通道`)
+				}
+			}
 			const entryIds = Array.isArray(location.entryDeviceIds)
 				? location.entryDeviceIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))
 				: []

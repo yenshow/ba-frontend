@@ -164,7 +164,9 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 							: undefined,
 					preferRegion: config.preferRegion ?? undefined,
 					entryEventCameraDeviceId: config.entryEventCameraDeviceId ?? undefined,
+					entryEventCameraNvrTrackId: config.entryEventCameraNvrTrackId ?? undefined,
 					exitEventCameraDeviceId: config.exitEventCameraDeviceId ?? undefined,
+					exitEventCameraNvrTrackId: config.exitEventCameraNvrTrackId ?? undefined,
 					logDisplayColumns: Array.isArray(config.logDisplayColumns)
 						? config.logDisplayColumns
 						: undefined,
@@ -427,9 +429,11 @@ export function peopleCountingLocationToUnified(
 								entryEventCameraDeviceId: toStoredEventCameraDeviceId(
 									pcLoc.entryEventCameraDeviceId
 								),
+								entryEventCameraNvrTrackId: pcLoc.entryEventCameraNvrTrackId,
 								exitEventCameraDeviceId: toStoredEventCameraDeviceId(
 									pcLoc.exitEventCameraDeviceId
 								),
+								exitEventCameraNvrTrackId: pcLoc.exitEventCameraNvrTrackId,
 							}
 						: {}),
 					logDisplayColumns: (() => {
