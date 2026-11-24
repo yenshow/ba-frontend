@@ -18,6 +18,7 @@ import {
 } from "~/utils/personnelUtils"
 import { rememberLocationCredentialSyncStatuses } from "~/utils/syncCredentialIcons"
 import { syncJobIssueItemsToWarnings } from "~/utils/deviceSyncProgress"
+import { assertPersonnelSyncJobOk } from "~/utils/personnelSyncJobResult"
 
 export const usePersonnelSyncEngine = (params: {
 	personnelApi: PersonnelApi
@@ -210,6 +211,7 @@ export const usePersonnelSyncEngine = (params: {
 			}
 
 			if (job.status === "completed") {
+				assertPersonnelSyncJobOk(job)
 				const rawWarnings = job.result?.warnings ?? []
 				const locId = activeSyncLocationId.value
 				const loc =
@@ -281,7 +283,7 @@ export const usePersonnelSyncEngine = (params: {
 				const job = await personnelApi.getSyncAllLocationsJob(jobId)
 				activeSyncAllJob.value = job
 				if (job.status === "completed") {
-					if (job.error?.message) throw new Error(job.error.message)
+					assertPersonnelSyncJobOk(job)
 					const result = job.result
 					const locLabelById = new Map<number, string>()
 					for (const loc of syncableLocations.value || []) {

@@ -613,44 +613,54 @@ export function mergeFullZoneWithSystemUpdate<TZone extends { name?: string; loc
 			name?: string | null
 		}): UnifiedLocation | undefined => {
 			const slId = sl.id != null && String(sl.id).trim() !== "" ? String(sl.id) : ""
-			const isPersistedId = Boolean(slId && !slId.startsWith("temp-"))
+			// 與後端 resolveZoneLocationMutation 一致：僅數字 id 視為既有地點
+			const isPersistedId = Boolean(slId && /^\d+$/.test(slId))
+			// 既有地點只以 ID 配對；過期／找不到的 ID 不可再用同名接走
 			if (isPersistedId) {
-				const byId = fullLocations.find((fl) => fl.id != null && String(fl.id) === slId)
-				if (byId) return byId
+				return fullLocations.find((fl) => fl.id != null && String(fl.id) === slId)
 			}
 			const trimmedName = sl.name != null ? String(sl.name).trim() : ""
 			if (!trimmedName) return undefined
 			return fullLocations.find((fl) => (fl.name || "").trim() === trimmedName)
 		}
-		const mergedFirst: (UnifiedLocation | UnifiedLocationInput)[] = systemLocations.map(
-			(sl: { id?: string; name?: string }) => {
-				const fullMatch = resolveFullLocationMatch(sl)
-				if (fullMatch) {
-					const otherSystems = (fullMatch.systems ?? []).filter((s) => s.systemType !== systemType)
-					const ourUnified = locationConverter(sl as ConstructionLocationInput, systemType)
-					const mergedSystems = [...otherSystems, ...(ourUnified.systems ?? [])]
-					return {
-						...fullMatch,
-						...(ourUnified.name !== undefined ? { name: ourUnified.name } : {}),
-						...(ourUnified.description !== undefined
-							? { description: ourUnified.description }
-							: {}),
-						...(ourUnified.createdAt !== undefined ? { createdAt: ourUnified.createdAt } : {}),
-						...pickSortOrder((ourUnified as { sortOrder?: unknown }).sortOrder),
-						systems: mergedSystems,
-					}
-				}
-				return locationConverter(sl as ConstructionLocationInput, systemType)
+		const mergeMatched = (
+			fullMatch: UnifiedLocation,
+			sl: ConstructionLocationInput
+		): UnifiedLocation | UnifiedLocationInput => {
+			const otherSystems = (fullMatch.systems ?? []).filter((s) => s.systemType !== systemType)
+			const ourUnified = locationConverter(sl, systemType)
+			const mergedSystems = [...otherSystems, ...(ourUnified.systems ?? [])]
+			return {
+				...fullMatch,
+				...(ourUnified.name !== undefined ? { name: ourUnified.name } : {}),
+				...(ourUnified.description !== undefined
+					? { description: ourUnified.description }
+					: {}),
+				...(ourUnified.createdAt !== undefined ? { createdAt: ourUnified.createdAt } : {}),
+				...pickSortOrder((ourUnified as { sortOrder?: unknown }).sortOrder),
+				systems: mergedSystems,
 			}
-		)
-		const mergedIds = new Set(
-			mergedFirst
-				.map((fl) => fl.id)
-				.filter(Boolean)
-				.map((id) => String(id))
-		)
-		const rest = fullLocations.filter((fl) => !mergedIds.has(String(fl.id)))
-		result.locations = [...mergedFirst, ...rest]
+		}
+		const updatesByFullId = new Map<string, UnifiedLocation | UnifiedLocationInput>()
+		const newLocations: (UnifiedLocation | UnifiedLocationInput)[] = []
+		for (const sl of systemLocations as ConstructionLocationInput[]) {
+			const fullMatch = resolveFullLocationMatch(sl)
+			if (fullMatch?.id != null) {
+				updatesByFullId.set(String(fullMatch.id), mergeMatched(fullMatch, sl))
+				continue
+			}
+			// 過期 persisted id 保留給後端拒絕（勿剝 id，否則會落入同名合併）
+			newLocations.push(locationConverter(sl, systemType))
+		}
+		// 保留 fullZone 原順序，只就地合併；新建地點 append
+		result.locations = [
+			...fullLocations.map((fl) =>
+				fl.id != null && updatesByFullId.has(String(fl.id))
+					? updatesByFullId.get(String(fl.id))!
+					: fl
+			),
+			...newLocations,
+		]
 	}
 
 	return result
