@@ -254,9 +254,6 @@ export interface PeopleCountingSystemConfig {
 	logDisplayColumns?: string[];
 	/** 人臉辨識：比對準確度下限（0–100，預設 50） */
 	faceSimilarityThreshold?: number;
-	/** 訂閱後短查設備歷史補齊漏推事件（門禁／人臉） */
-	eventBackfillEnabled?: boolean;
-	eventBackfillWindowSec?: number;
 	/** 進場／出場／在場人數顯示名稱（可選） */
 	statLabels?: {
 		entry?: string;
@@ -285,9 +282,6 @@ export interface VehicleAccessSystemConfig {
 	cameraChannelId?: number;
 	vehicleGroupIds?: number[];
 	logDisplayColumns?: string[];
-	/** 訂閱後短查設備歷史補齊漏推 ANPR */
-	eventBackfillEnabled?: boolean;
-	eventBackfillWindowSec?: number;
 	/** 進場／出場／在場車輛顯示名稱（可選） */
 	statLabels?: {
 		entry?: string;

@@ -458,36 +458,6 @@
 			</template>
 		</div>
 
-		<div v-if="showEventBackfillOptions" class="mt-3 border-t border-white/10 pt-3">
-			<label class="flex cursor-pointer items-center gap-2">
-				<input
-					v-model="eventBackfillEnabledInput"
-					type="checkbox"
-					class="h-4 w-4 accent-cyan-400"
-					@change="handleChange"
-				/>
-				<span class="text-sm text-white/90 2xl:text-base">訂閱後補齊漏推事件</span>
-			</label>
-			<p class="mt-1 text-xs text-white/50">
-				設備訂閱成功後，主動查詢近期歷史事件並寫入平台，降低推送漏失造成的資料落差(設備需插入SD
-				此功能才有效)
-			</p>
-			<label v-if="eventBackfillEnabledInput" :class="[fieldLabelClass, 'mt-3 max-w-xs']">
-				<span>補齊時間窗（秒）</span>
-				<input
-					v-model.number="eventBackfillWindowSecInput"
-					type="number"
-					min="1"
-					max="30"
-					step="1"
-					class="form-input-small"
-					placeholder="5"
-					@input="handleChange"
-				/>
-				<span class="text-xs text-white/50">範圍 1–30 秒；預設 5</span>
-			</label>
-		</div>
-
 		<div class="mt-3 border-t border-white/10 pt-3">
 			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
 			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -586,7 +556,6 @@ import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { useLicense } from "~/composables/core/useLicense"
 import { storedPeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
 import { normalizeFaceSimilarityThreshold } from "~/utils/peopleCountingFaceThreshold"
-import { useLocationEventBackfillFields } from "~/composables/location/useLocationEventBackfillFields"
 import {
 	DEFAULT_PEOPLE_COUNTING_STAT_LABELS,
 	draftEntryExitStatLabels,
@@ -804,15 +773,6 @@ const getEffectiveExitCameraDeviceIds = (): number[] => {
 }
 
 const isFaceMode = computed(() => cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION)
-
-const showEventBackfillOptions = computed(
-	() =>
-		dataSource.value === "access_control" ||
-		(dataSource.value === "isapi_camera" && isFaceMode.value)
-)
-
-const { eventBackfillEnabledInput, eventBackfillWindowSecInput } =
-	useLocationEventBackfillFields(localLocation)
 
 const faceSimilarityThresholdInput = computed({
 	get: () => normalizeFaceSimilarityThreshold(localLocation.value.faceSimilarityThreshold),

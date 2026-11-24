@@ -43,10 +43,6 @@ export interface PeopleCountingLocation {
 	logDisplayColumns?: string[]
 	/** 人臉辨識：比對準確度下限（0–100，預設 50） */
 	faceSimilarityThreshold?: number
-	/** 訂閱後短查設備歷史補齊漏推事件 */
-	eventBackfillEnabled?: boolean
-	/** 補查視窗秒數（1–30，預設 5） */
-	eventBackfillWindowSec?: number
 	/** 進場／出場／在場人數顯示名稱（可選；空白＝系統預設） */
 	statLabels?: {
 		entry?: string

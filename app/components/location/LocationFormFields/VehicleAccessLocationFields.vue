@@ -214,38 +214,6 @@
 			</div>
 		</div>
 
-		<div v-if="dataSource === 'isapi_camera'" class="mt-3 border-t border-white/10 pt-3">
-			<label class="flex cursor-pointer items-center gap-2">
-				<input
-					v-model="eventBackfillEnabledInput"
-					type="checkbox"
-					class="h-4 w-4 accent-cyan-400"
-					@change="handleChange"
-				/>
-				<span class="text-sm text-white/90 2xl:text-base">訂閱後補齊漏推事件</span>
-			</label>
-			<p class="mt-1 text-xs text-white/50">
-				設備訂閱成功後，主動查詢近期歷史車牌事件並寫入平台，降低推送漏失造成的資料落差
-			</p>
-			<label
-				v-if="eventBackfillEnabledInput"
-				class="mt-3 flex max-w-xs flex-col gap-2 text-sm text-white/80 2xl:text-base"
-			>
-				<span>補齊時間窗（秒）</span>
-				<input
-					v-model.number="eventBackfillWindowSecInput"
-					type="number"
-					min="1"
-					max="30"
-					step="1"
-					class="form-input-small"
-					placeholder="5"
-					@input="handleChange"
-				/>
-				<span class="text-xs text-white/50">範圍 1–30 秒；預設 5</span>
-			</label>
-		</div>
-
 		<div class="mt-3 border-t border-white/10 pt-3">
 			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
 			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -324,7 +292,6 @@ import { useDeviceEnableFeature } from "~/composables/core/useAuth"
 import { filterLicensePlateCameraDevices } from "~/utils/cameraModelCategories"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { storedVehicleAccessDataSource } from "~/utils/vehicleAccessDataSource"
-import { useLocationEventBackfillFields } from "~/composables/location/useLocationEventBackfillFields"
 import {
 	VEHICLE_ACCESS_LOG_COLUMN_LABELS,
 	TOGGLEABLE_VEHICLE_LOG_COLUMN_KEYS,
@@ -397,9 +364,6 @@ const entryLaneIdString = ref("")
 const exitLaneIdString = ref("")
 const laneList = ref<LaneInfo[]>([])
 const cameraDevices = ref<Device[]>([])
-
-const { eventBackfillEnabledInput, eventBackfillWindowSecInput } =
-	useLocationEventBackfillFields(localLocation)
 
 const activeLogColumns = computed(() =>
 	normalizeVehicleLogDisplayColumns(localLocation.value.logDisplayColumns)
