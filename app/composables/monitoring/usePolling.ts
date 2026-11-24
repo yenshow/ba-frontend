@@ -25,6 +25,8 @@ export const usePolling = (options: UsePollingOptions) => {
 
 	const isActive = ref(false);
 	let timer: ReturnType<typeof setTimeout> | null = null;
+	let callbackRunning = false;
+	let immediatePending = false;
 
 	const instance = getCurrentInstance();
 
@@ -34,31 +36,36 @@ export const usePolling = (options: UsePollingOptions) => {
 	};
 
 	const clearTimer = () => {
-		if (timer) {
+		if (timer !== null) {
 			clearTimeout(timer);
 			timer = null;
 		}
 	};
 
 	const executeCallback = async () => {
-		if (enabled && !enabled()) {
-			return;
-		}
-
+		callbackRunning = true;
 		try {
-			await callback();
+			if (!enabled || enabled()) await callback();
 		} catch (err) {
 			onError?.(err);
+		} finally {
+			callbackRunning = false;
+			scheduleNext();
 		}
 	};
 
 	const scheduleNext = () => {
 		clearTimer();
-		if (!isActive.value) return;
+		if (!isActive.value || callbackRunning) return;
+		if (immediatePending) {
+			immediatePending = false;
+			void executeCallback();
+			return;
+		}
 
-		timer = setTimeout(async () => {
-			await executeCallback();
-			scheduleNext();
+		timer = setTimeout(() => {
+			timer = null;
+			void executeCallback();
 		}, getInterval());
 	};
 
@@ -68,12 +75,7 @@ export const usePolling = (options: UsePollingOptions) => {
 		}
 
 		isActive.value = true;
-
-		if (immediate) {
-			void executeCallback().finally(() => scheduleNext());
-			return;
-		}
-
+		immediatePending = immediate;
 		scheduleNext();
 	};
 
@@ -83,6 +85,7 @@ export const usePolling = (options: UsePollingOptions) => {
 		}
 
 		isActive.value = false;
+		immediatePending = false;
 		clearTimer();
 	};
 

@@ -194,7 +194,7 @@ export const validateRuntimeConfigForSave = (
 		Number.isInteger(onlineDays) &&
 		onlineDays < archiveDays + 1
 	) {
-		return "線上資料保留天數須大於「逾此天數寫入備份檔」";
+		return "歸檔回溯天數須大於「逾此天數寫入備份檔」";
 	}
 
 	const rootDir = trimField(payload, "BACKUP_ROOT_DIR");

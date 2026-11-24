@@ -1,8 +1,13 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { toLegacyRouteRedirectRules } from "./app/config/legacyRouteRedirects";
+
+const requireFromProject = createRequire(import.meta.url);
+const requireFromNuxt = createRequire(requireFromProject.resolve("nuxt/package.json"));
+const routeBlockPlugin = "vue-router/volar/sfc-route-blocks";
 
 /** 僅 monorepo `nuxt dev`；Vercel／獨立 frontend repo 沒有此檔，略過 */
 const socketIoProxyFile = resolve(process.cwd(), "../scripts/nuxtSocketIoUpgradeProxy.mjs");
@@ -17,7 +22,23 @@ export default defineNuxtConfig({
 	compatibilityDate: "2025-07-15",
 	devtools: { enabled: false },
 
-	modules: ["@nuxt/image", "@nuxt/scripts", "@nuxt/test-utils", "@nuxtjs/tailwindcss"],
+	modules: [
+		"@nuxt/image",
+		"@nuxt/scripts",
+		"@nuxt/test-utils",
+		"@nuxtjs/tailwindcss",
+		(_options, nuxt) => {
+			// 使用 Nuxt 本身依賴的 Vue Router 解析 Volar。
+			nuxt.hook("modules:done", () => {
+				nuxt.hook("prepare:types", ({ tsConfig }) => {
+					const plugins = tsConfig.vueCompilerOptions?.plugins;
+					if (!plugins) return;
+					const index = plugins.indexOf(routeBlockPlugin);
+					if (index >= 0) plugins[index] = requireFromNuxt.resolve(routeBlockPlugin);
+				});
+			});
+		}
+	],
 
 	// 應用程式設定
 	app: {

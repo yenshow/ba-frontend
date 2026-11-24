@@ -7,7 +7,8 @@ const ARC_COLOR_BY_STATUS: Record<MonitoringStatusText, string> = {
 	正常: "#00FFB5",
 	異常: "#FFC701",
 	警報: "#FF0000",
-	離線: "#888888"
+	離線: "#888888",
+	活動: "#38BDF8"
 };
 
 export const getGaugeArcPercentage = (
