@@ -26,6 +26,7 @@ export {
 
 export type {
 	PersonDialogSnapshot,
+	PersonnelPersonDialogMainTab,
 	PersonnelPersonDialogSection,
 } from "~/composables/systems/personnel/usePersonnelPersonForm"
 

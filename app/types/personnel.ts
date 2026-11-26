@@ -43,6 +43,72 @@ export type LocationMembersReplaceMeta = {
 	plateSync?: { triggered: boolean };
 };
 
+/** GET /personnel/persons/:id/entitlements */
+export type PersonEntitlementLocationFlags = {
+	peopleCounting: boolean;
+	rollCall: boolean;
+	vehiclePlates: boolean;
+};
+
+export type PersonEntitlementLocation = {
+	locationId: number;
+	locationName: string;
+	zoneId?: number | null;
+	zoneName?: string | null;
+	flags: PersonEntitlementLocationFlags;
+	granted: boolean;
+};
+
+export type PersonElevatorEntitlement = {
+	locationId: number;
+	locationName: string;
+	zoneName?: string | null;
+	floorIndexes: number[];
+	ladderSyncStatus?: string | null;
+	ladderSyncError?: string | null;
+};
+
+export type PersonCredentialsSummary = {
+	hasFace: boolean;
+	hasCard: boolean;
+	cardCount: number;
+	fingerprintCount: number;
+	plateCount: number;
+};
+
+export type PersonEntitlements = {
+	personId: number;
+	employeeNo: string;
+	fullName?: string | null;
+	status: string;
+	credentials: PersonCredentialsSummary;
+	locations: PersonEntitlementLocation[];
+	elevator: PersonElevatorEntitlement[];
+	activeJobs: Array<{
+		jobId: string;
+		jobType: string;
+		status: string;
+		locationId?: number | null;
+		progress?: Record<string, unknown>;
+		createdAt?: number | null;
+		startedAt?: number | null;
+	}>;
+};
+
+export type ElevatorCandidateLocation = {
+	locationId: number;
+	locationName: string;
+	zoneName?: string | null;
+	floors: Array<{ floorIndex: number; code: string; name: string }>;
+};
+
+export type PersonLocationAccessPatchResult = {
+	personId: number;
+	granted: number[];
+	revoked: number[];
+	deviceSync?: { triggered: boolean; jobId?: string | null; error?: string };
+};
+
 export interface PersonLicensePlateFormItem {
 	plateNumber: string;
 	listType: PersonLicensePlateListType;
@@ -223,7 +289,8 @@ export interface SyncLocationJobItem {
 
 export interface SyncLocationJob {
 	jobId: string;
-	locationId: number;
+	/** 地點同步為 number；person_sync 為 null */
+	locationId: number | null;
 	locationName: string | null;
 	status: "queued" | "running" | "completed";
 	createdAt: number;
@@ -239,10 +306,14 @@ export interface SyncLocationJob {
 		deviceTotal: number;
 		currentDeviceIndex: number;
 		currentDeviceId: number | null;
-		targetPersonsTotal: number;
+		/** 地點同步用；person_sync 可能省略 */
+		targetPersonsTotal?: number;
 		currentEmployeeNo: string | null;
 		currentAction: string | null;
 		currentStage: string | null;
+		/** person_sync：等待既有 job 時的提示 */
+		waitMessage?: string | null;
+		currentLocationId?: number | null;
 	};
 	/**
 	 * issues：failed 明細（不建議輪詢時帶，請用 items API 分頁抓）

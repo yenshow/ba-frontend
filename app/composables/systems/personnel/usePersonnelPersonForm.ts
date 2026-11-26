@@ -100,6 +100,8 @@ export type PersonnelPersonDialogSection =
 	| "fingerprint"
 	| "licensePlate"
 
+export type PersonnelPersonDialogMainTab = "profile" | "entitlements"
+
 type DeviceApi = ReturnType<typeof useDeviceApi>
 type AccessControlApi = ReturnType<typeof useAccessControlApi>
 
@@ -144,6 +146,7 @@ export const usePersonnelPersonForm = (params: {
 
 	const showPersonDialog = ref(false)
 	const personDialogSection = ref<PersonnelPersonDialogSection>("form")
+	const personDialogMainTab = ref<PersonnelPersonDialogMainTab>("profile")
 	const editingPerson = ref<Person | null>(null)
 	const isSubmitting = ref(false)
 	const errorMessage = ref<string | null>(null)
@@ -371,6 +374,7 @@ export const usePersonnelPersonForm = (params: {
 	const openPersonCreate = (section: PersonnelPersonDialogSection = "form") => {
 		editingPerson.value = null
 		personDialogSection.value = section
+		personDialogMainTab.value = "profile"
 		personForm.employeeNo = ""
 		personForm.fullName = ""
 		personForm.status = "active"
@@ -418,6 +422,7 @@ export const usePersonnelPersonForm = (params: {
 			return
 		}
 		personDialogSection.value = section
+		personDialogMainTab.value = "profile"
 		applyPersonToEditForm(full)
 		void loadAccessControlDevices()
 		capturePersonDialogSnapshot()
@@ -741,10 +746,21 @@ export const usePersonnelPersonForm = (params: {
 
 			if (mode === "create") personsOffset.value = 0
 			const plateHint = licensePlatesDirty ? "車牌已存平台；請至車牌管理同步至攝影機。" : ""
+			if (mode === "create") {
+				// 保留當前表單內容；僅掛上新建 id，避免精簡 create 回應覆寫已填憑證
+				editingPerson.value = saved
+				personForm.employeeNo = saved.employee_no
+				if (saved.face_url) personForm.faceUrl = saved.face_url
+				capturePersonDialogSnapshot()
+				personDialogMainTab.value = "entitlements"
+				toast.success(
+					`已新增人員。${plateHint}請於「授權與同步」設定地點授權。`.trim(),
+				)
+				void loadPersons()
+				return { ok: true as const }
+			}
 			toast.success(
-				mode === "update"
-					? `已更新人員。${plateHint}請至門禁管理設定地點名單並同步門禁設備。`.trim()
-					: `已新增人員。${plateHint}請至門禁管理設定地點名單並同步門禁設備。`.trim(),
+				`已更新人員。${plateHint}可於「授權與同步」調整地點授權並同步設備。`.trim(),
 			)
 			showPersonDialog.value = false
 			void loadPersons()
@@ -774,11 +790,13 @@ export const usePersonnelPersonForm = (params: {
 		errorMessage.value = null
 		personDialogSnapshot.value = null
 		personDialogSection.value = "form"
+		personDialogMainTab.value = "profile"
 	})
 
 	return {
 		showPersonDialog,
 		personDialogSection,
+		personDialogMainTab,
 		editingPerson,
 		personForm,
 		accessControlDevices,
