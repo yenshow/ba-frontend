@@ -6,17 +6,56 @@
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 			>
 				<div
-					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-3xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
+					class="dialog-panel-bg flex h-[min(90vh,880px)] max-h-[90vh] min-h-0 w-full max-w-4xl flex-col gap-4 overflow-hidden rounded-3xl p-7 2xl:gap-6 2xl:p-8"
+					role="dialog"
+					aria-modal="true"
+					:aria-label="isEditingPerson ? '編輯人員' : '新增人員'"
 				>
-					<header class="flex items-center justify-between gap-3">
-						<div class="flex min-w-0 items-center gap-3">
+					<header class="flex shrink-0 items-center justify-between gap-3">
+						<div class="flex min-w-0 flex-wrap items-center gap-3">
 							<h3
-								class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+								class="shrink-0 text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
 							>
 								{{ isEditingPerson ? "編輯人員" : "新增人員" }}
 							</h3>
+							<nav
+								class="flex flex-wrap items-center gap-1.5"
+								role="tablist"
+								aria-label="人員表單分頁"
+							>
+								<button
+									type="button"
+									role="tab"
+									:aria-selected="mainTab === 'profile'"
+									class="rounded-lg px-3 py-1 text-sm transition-colors 2xl:px-3.5 2xl:py-1.5 2xl:text-base"
+									:class="
+										mainTab === 'profile'
+											? 'bg-cyan-500/80 text-white'
+											: 'border border-white/20 bg-white/5 text-white/80 hover:bg-white/10'
+									"
+									@click="mainTab = 'profile'"
+								>
+									基本資料
+								</button>
+								<button
+									type="button"
+									role="tab"
+									:aria-selected="mainTab === 'entitlements'"
+									:disabled="!canOpenEntitlementsTab"
+									class="rounded-lg px-3 py-1 text-sm transition-colors 2xl:px-3.5 2xl:py-1.5 2xl:text-base disabled:cursor-not-allowed disabled:opacity-40"
+									:class="
+										mainTab === 'entitlements'
+											? 'bg-cyan-500/80 text-white'
+											: 'border border-white/20 bg-white/5 text-white/80 hover:bg-white/10'
+									"
+									:title="canOpenEntitlementsTab ? undefined : '請先儲存人員'"
+									@click="handleSelectEntitlementsTab"
+								>
+									授權與同步
+								</button>
+							</nav>
 							<FormChangeIndicator
-								v-if="state.ui.hasUnsavedChanges.value"
+								v-if="state.ui.hasUnsavedChanges.value && mainTab === 'profile'"
 								:has-changes="state.ui.hasUnsavedChanges.value"
 								:changed-fields="state.ui.changedFieldsList.value"
 							/>
@@ -31,7 +70,9 @@
 						</button>
 					</header>
 
+					<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto pe-1">
 					<form
+						v-show="mainTab === 'profile'"
 						class="grid grid-cols-2 gap-4 2xl:gap-6"
 						@submit.prevent
 					>
@@ -493,6 +534,23 @@
 							</button>
 						</footer>
 					</form>
+
+					<div v-show="mainTab === 'entitlements'">
+						<p
+							v-if="editingPersonId == null"
+							class="py-8 text-center text-sm text-white/60"
+						>
+							請先儲存基本資料後再設定授權
+						</p>
+						<PersonnelEntitlementsPanel
+							v-else
+							:person-id="editingPersonId"
+							:active="modelValue && mainTab === 'entitlements'"
+							@applied="emit('entitlements-applied')"
+							@leave="handleEntitlementsLeave"
+						/>
+					</div>
+					</div>
 				</div>
 			</div>
 		</Transition>
@@ -529,7 +587,11 @@ import {
 	createEmptyFingerprintFormItem,
 } from "~/utils/fingerprintFormUtils"
 import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils"
-import type { PersonnelPersonDialogSection } from "~/composables/systems/personnel/usePersonnelPersonForm"
+import type {
+	PersonnelPersonDialogMainTab,
+	PersonnelPersonDialogSection,
+} from "~/composables/systems/personnel/usePersonnelPersonForm"
+import PersonnelEntitlementsPanel from "~/components/personnel/PersonnelEntitlementsPanel.vue"
 import { usePeopleCountingAccessRbac } from "~/composables/core/useAccessGate"
 
 const { canEditAccessMembers: canCaptureFromDevice } = usePeopleCountingAccessRbac()
@@ -541,6 +603,10 @@ const props = defineProps<{
 	activeSection: PersonnelPersonDialogSection
 	profileFields?: PersonnelProfileField[]
 }>()
+
+const mainTab = defineModel<PersonnelPersonDialogMainTab>("mainTab", {
+	default: "profile",
+})
 
 const profileFields = computed(() => props.profileFields ?? [])
 
@@ -565,9 +631,22 @@ const emit = defineEmits<{
 	"capture-card": [tabIndex: number]
 	"generate-virtual-card": [tabIndex: number]
 	"capture-fingerprint": [tabIndex: number]
+	"entitlements-applied": []
 }>()
 
 const isEditingPerson = computed(() => props.state.editingPerson.value != null)
+const editingPersonId = computed(() => props.state.editingPerson.value?.id ?? null)
+const canOpenEntitlementsTab = computed(() => editingPersonId.value != null)
+
+const handleSelectEntitlementsTab = () => {
+	if (!canOpenEntitlementsTab.value) return
+	mainTab.value = "entitlements"
+}
+
+const handleEntitlementsLeave = async (path: string) => {
+	emit("update:modelValue", false)
+	await navigateTo(path)
+}
 
 const sectionScrollTargetId = (section: PersonnelPersonDialogSection): string | null => {
 	switch (section) {

@@ -16,6 +16,9 @@ import type {
 	LocationLicensePlateRow,
 	LocationMembersReplaceMeta,
 	VehiclePlateSyncResult,
+	PersonEntitlements,
+	ElevatorCandidateLocation,
+	PersonLocationAccessPatchResult,
 } from "~/types/personnel"
 import type { PersonnelProfileSchema } from "~/utils/personnelProfileFields"
 import type { HandleErrorOptions } from "~/composables/core/useErrorHandler"
@@ -207,6 +210,34 @@ export type PersonnelApi = {
 			full_name: string | null;
 		}>;
 	}>
+
+	getPersonEntitlements: (personId: number) => Promise<PersonEntitlements>
+	getElevatorCandidateLocations: () => Promise<{ items: ElevatorCandidateLocation[] }>
+	patchPersonLocationAccess: (
+		personId: number,
+		body: {
+			grantLocationIds?: number[]
+			revokeLocationIds?: number[]
+			sync?: boolean
+		}
+	) => Promise<PersonLocationAccessPatchResult>
+	startPersonSyncJob: (
+		personId: number,
+		body?: { locationIds?: number[] | null; domains?: string[] }
+	) => Promise<{ jobId: string; reused?: boolean }>
+	getPersonSyncJob: (
+		personId: number,
+		jobId: string,
+		params?: { includeIssues?: boolean; includeTail?: boolean }
+	) => Promise<SyncLocationJob>
+	replacePersonLadderCard: (
+		personId: number,
+		body: {
+			floors?: { byLocation: Record<string, number[]> }
+			clear?: boolean
+			sync?: boolean
+		}
+	) => Promise<Record<string, unknown>>
 }
 
 export const usePersonnelApi = (): PersonnelApi => {
@@ -491,5 +522,49 @@ export const usePersonnelApi = (): PersonnelApi => {
 				})
 			)
 		},
+
+		getPersonEntitlements: (personId: number) =>
+			request<PersonEntitlements>(`${PERSONNEL_PREFIX}/persons/${personId}/entitlements`),
+		getElevatorCandidateLocations: () =>
+			request<{ items: ElevatorCandidateLocation[] }>(
+				`${PERSONNEL_PREFIX}/elevator-candidate-locations`,
+			),
+		patchPersonLocationAccess: (personId, body) =>
+			request<PersonLocationAccessPatchResult>(
+				`${PERSONNEL_PREFIX}/persons/${personId}/location-access`,
+				{
+					method: "POST",
+					body: JSON.stringify(body),
+					timeout: PERSON_WITH_VEHICLE_SYNC_TIMEOUT_MS,
+				},
+			),
+		startPersonSyncJob: (personId, body) =>
+			request<{ jobId: string; reused?: boolean }>(
+				`${PERSONNEL_PREFIX}/persons/${personId}/sync`,
+				{
+					method: "POST",
+					body: JSON.stringify(body || {}),
+					timeout: 15000,
+				},
+			),
+		getPersonSyncJob: (personId, jobId, params) => {
+			const query: Record<string, string | number> = {}
+			if (params?.includeIssues) query.includeIssues = 1
+			if (params?.includeTail) query.includeTail = 1
+			const p =
+				Object.keys(query).length > 0
+					? buildPathWithQuery(
+							`${PERSONNEL_PREFIX}/persons/${personId}/sync/jobs/${encodeURIComponent(jobId)}`,
+							query,
+						)
+					: `${PERSONNEL_PREFIX}/persons/${personId}/sync/jobs/${encodeURIComponent(jobId)}`
+			return request<SyncLocationJob>(p)
+		},
+		replacePersonLadderCard: (personId, body) =>
+			request<Record<string, unknown>>(`${PERSONNEL_PREFIX}/persons/${personId}/ladder-card`, {
+				method: "PUT",
+				body: JSON.stringify(body),
+				timeout: PERSON_WITH_VEHICLE_SYNC_TIMEOUT_MS,
+			}),
 	}
 }

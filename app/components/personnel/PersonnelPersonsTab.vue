@@ -181,6 +181,7 @@
 
 		<PersonnelPersonDialog
 			v-model="showPersonDialog"
+			v-model:main-tab="personDialogMainTab"
 			:active-section="personDialogSection"
 			:group-tree="groupTree"
 			:profile-fields="profileSchema.fields.value"
@@ -192,6 +193,7 @@
 			@capture-card="(idx) => props.personsTab.handleCaptureCard(idx)"
 			@generate-virtual-card="(idx) => props.personsTab.handleGenerateVirtualCard(idx)"
 			@capture-fingerprint="(idx) => props.personsTab.handleCaptureFingerPrint(idx)"
+			@entitlements-applied="handleEntitlementsApplied"
 		/>
 
 		<ImageCropDialog
@@ -296,6 +298,7 @@ const {
 	editPerson,
 	showPersonDialog,
 	personDialogSection,
+	personDialogMainTab,
 	showImportDialog,
 	importError,
 	importResult,
@@ -313,6 +316,7 @@ const {
 	confirmPersonDialogDismiss,
 	profileFieldsDialog,
 	profileSchema,
+	loadPersons,
 } = props.personsTab
 
 const showAvatarColumn = computed(() => profileSchema.listColumns.value.avatar)
@@ -328,6 +332,10 @@ const openProfileFieldsDialog = () => {
 
 const openImportDialog = () => {
 	showImportDialog.value = true
+}
+
+const handleEntitlementsApplied = () => {
+	void loadPersons()
 }
 
 const confirmDialog = useConfirmDialog()
