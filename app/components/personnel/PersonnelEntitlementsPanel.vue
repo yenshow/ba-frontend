@@ -301,20 +301,25 @@ const handleApply = async () => {
 		const grantLocationIds = [...next].filter((id) => !original.has(id))
 		const revokeLocationIds = [...original].filter((id) => !next.has(id))
 
-		let jobId: string | null = null
-		if (grantLocationIds.length || revokeLocationIds.length) {
-			const result = await personnelApi.patchPersonLocationAccess(props.personId, {
-				grantLocationIds,
-				revokeLocationIds,
-				sync: true,
-			})
-			jobId = result.deviceSync?.jobId || null
+		if (!grantLocationIds.length && !revokeLocationIds.length) {
+			toast.success("授權未變更")
+			return
 		}
 
-		toast.success(jobId ? "授權已套用，正在同步設備…" : "授權已套用")
+		await personnelApi.patchPersonLocationAccess(props.personId, {
+			grantLocationIds,
+			revokeLocationIds,
+			sync: false,
+		})
+
+		const { jobId } = await personnelApi.startPersonSyncJob(props.personId, {
+			domains: ["access", "plates"],
+			grantLocationIds,
+			revokeLocationIds,
+		})
+		toast.success("授權已套用，正在同步設備…")
 		emit("applied")
-		if (jobId) await pollJob(props.personId, jobId)
-		else await load()
+		await pollJob(props.personId, jobId)
 	} catch (err) {
 		handleError(err, "套用授權失敗")
 	} finally {

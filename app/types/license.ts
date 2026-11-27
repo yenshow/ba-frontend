@@ -1,4 +1,7 @@
-/** 授權控管：與後端 `LICENSE_DEPLOYMENT_PROFILE=construction` 時之 FEATURE_KEYS_CONSTRUCTION 對齊 */
+/**
+ * Construction 導覽／型別子集（對齊後端 FEATURE_KEYS_CONSTRUCTION 文件常數）。
+ * 後端 Feature Gate 仍為 central 全量 18 鍵；UI 子集 ≠ gate 子集。
+ */
 export type FeatureKey =
 	| "people_counting"
 	| "roll_call"
@@ -45,7 +48,9 @@ export type LicenseEntitlementEntry = {
 
 export type LicenseState = {
 	features: FeatureKey[];
+	/** 預留：買斷制目前後端固定未設定到期 */
 	expiresAt: string | null;
+	/** 預留：買斷制目前後端固定 `false` */
 	expired: boolean;
 	canActivate: boolean;
 	quotas?: Partial<Record<FeatureKey, LicenseQuotaEntry>>;

@@ -223,7 +223,12 @@ export type PersonnelApi = {
 	) => Promise<PersonLocationAccessPatchResult>
 	startPersonSyncJob: (
 		personId: number,
-		body?: { locationIds?: number[] | null; domains?: string[] }
+		body?: {
+			locationIds?: number[] | null
+			domains?: string[]
+			grantLocationIds?: number[]
+			revokeLocationIds?: number[]
+		}
 	) => Promise<{ jobId: string; reused?: boolean }>
 	getPersonSyncJob: (
 		personId: number,
