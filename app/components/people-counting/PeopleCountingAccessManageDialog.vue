@@ -1,7 +1,7 @@
 <template>
 	<DeviceManageDialogShell
 		:model-value="modelValue"
-		:title="dialogTitle"
+		:title="dialogTitleText"
 		:title-meta="locationName"
 		title-id="pc-access-manage-title"
 		:is-ui-locked="isUiLocked"
@@ -80,6 +80,8 @@ const props = defineProps<{
 	locationId: number | null
 	locationName?: string | null
 	dataSource?: "yscp" | "access_control" | "isapi_camera" | string | null
+	/** roll_call＝簽到應到名單文案；預設人流進出 */
+	purpose?: "people_counting" | "roll_call" | null
 	canEditMembers: boolean
 	canDeviceSync: boolean
 	accessSync: ReturnType<typeof useLocationAccessSync>
@@ -92,12 +94,19 @@ const emit = defineEmits<{
 }>()
 
 const isCameraSource = computed(() => props.dataSource === "isapi_camera")
-const dialogTitle = "門禁管理"
-const panelDescription = computed(() =>
-	isCameraSource.value
-		? "勾選允許此地點辨識的人員；套用後自動同步人臉至攝影機，狀態以圖示顯示於右側。"
-		: "勾選允許進出此地點的人員；套用後自動同步至設備，狀態以圖示顯示於右側。",
+const isRollCallPurpose = computed(() => props.purpose === "roll_call")
+const dialogTitleText = computed(() =>
+	isRollCallPurpose.value ? "門禁管理（時段簽到）" : "門禁管理",
 )
+const panelDescription = computed(() => {
+	if (isCameraSource.value) {
+		return "勾選允許此地點辨識的人員；套用後自動同步人臉至攝影機，狀態以圖示顯示於右側。"
+	}
+	if (isRollCallPurpose.value) {
+		return "勾選此地點應到／可簽到人員；套用後寫入地點名單並同步至設備。"
+	}
+	return "勾選允許進出此地點的人員；套用後自動同步至設備，狀態以圖示顯示於右側。"
+})
 const resyncAriaLabel = computed(() =>
 	isCameraSource.value ? "重新同步此地點至攝影機" : "重新同步此地點至門禁設備",
 )

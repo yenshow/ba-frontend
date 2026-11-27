@@ -333,6 +333,16 @@ export const useApiBase = () => {
 	const requestBlob = async (path: string, options: RequestOptions = {}): Promise<Blob> => {
 		const { url, method, headers, fetcherOptions, finalBody } = buildRequestInit(path, options)
 		const { body: _body, ...fetcherOptionsWithoutBody } = fetcherOptions
+		// 僅在呼叫端明確傳 timeout 時中止；避免套用 request() 的預設 5s 打斷大檔下載
+		const explicitTimeoutMs = Number(options.timeout)
+		const abortController = new AbortController()
+		const timeoutId =
+			Number.isFinite(explicitTimeoutMs) && explicitTimeoutMs > 0
+				? setTimeout(
+						() => abortController.abort(new Error("timeout")),
+						explicitTimeoutMs,
+					)
+				: null
 
 		try {
 			const response = await fetch(url, {
@@ -341,6 +351,7 @@ export const useApiBase = () => {
 				headers,
 				body: finalBody as BodyInit | null | undefined,
 				credentials: "include",
+				signal: abortController.signal,
 			})
 
 			if (!response.ok) {
@@ -390,6 +401,8 @@ export const useApiBase = () => {
 		} catch (error: unknown) {
 			if (error instanceof ApiRequestError) throw error
 			return await throwApiRequestError(error, path)
+		} finally {
+			if (timeoutId != null) clearTimeout(timeoutId)
 		}
 	}
 

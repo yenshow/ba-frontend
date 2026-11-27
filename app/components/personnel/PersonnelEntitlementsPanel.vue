@@ -357,12 +357,17 @@ const handleNavigate = (path: string) => {
 }
 
 const handleOpenLocationManage = (loc: PersonEntitlementLocation) => {
-	if (loc.flags.rollCall && hasFeature("roll_call")) {
-		handleNavigate("/access-control/roll-call")
-		return
-	}
+	// Central／YSOP 無時段簽到頁；勿深鏈 /access-control/roll-call
 	if (loc.flags.vehiclePlates && !loc.flags.peopleCounting) {
 		handleNavigate("/access-control/vehicle-access")
+		return
+	}
+	if (loc.flags.peopleCounting) {
+		handleNavigate("/access-control/people-counting")
+		return
+	}
+	if (loc.flags.rollCall) {
+		handleNavigate("/core/personnel")
 		return
 	}
 	handleNavigate("/access-control/people-counting")
