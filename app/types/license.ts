@@ -1,4 +1,4 @@
-/** 授權控管：與後端 `LICENSE_DEPLOYMENT_PROFILE=central` 時之 FEATURE_KEYS_CENTRAL 對齊 */
+/** 授權控管：對齊後端 `getActiveFeatureKeys()`／FEATURE_KEYS_CENTRAL（gate 全量；與 deployment profile 無關） */
 export type FeatureKey =
 	| "people_counting"
 	| "roll_call"
@@ -109,7 +109,9 @@ export type LicenseEntitlementEntry = {
 
 export type LicenseState = {
 	features: FeatureKey[]
+	/** 預留：買斷制目前後端固定未設定到期 */
 	expiresAt: string | null
+	/** 預留：買斷制目前後端固定 `false` */
 	expired: boolean
 	canActivate: boolean
 	quotas?: Partial<Record<FeatureKey, LicenseQuotaEntry>>

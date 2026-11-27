@@ -368,6 +368,24 @@ const handleOpenLocationManage = (loc: PersonEntitlementLocation) => {
 	handleNavigate("/access-control/people-counting")
 }
 
+const normalizeFloorMap = (raw: Record<string, number[]> | Record<number, number[]>) => {
+	const out: Record<string, number[]> = {}
+	for (const [locId, floors] of Object.entries(raw || {})) {
+		const list = [...(floors || [])]
+			.map(Number)
+			.filter((n) => Number.isFinite(n) && n > 0)
+			.sort((a, b) => a - b)
+		if (list.length) out[String(locId)] = list
+	}
+	return out
+}
+
+const floorMapFingerprint = (m: Record<string, number[]>) =>
+	Object.keys(m)
+		.sort()
+		.map((k) => `${k}:${(m[k] || []).join(",")}`)
+		.join("|")
+
 const handleApply = async () => {
 	if (!entitlements.value) return
 	saving.value = true
@@ -378,36 +396,56 @@ const handleApply = async () => {
 		const next = new Set(draftGranted.value)
 		const grantLocationIds = [...next].filter((id) => !original.has(id))
 		const revokeLocationIds = [...original].filter((id) => !next.has(id))
+		const locationChanged = grantLocationIds.length > 0 || revokeLocationIds.length > 0
 
-		let jobId: string | null = null
-		if (grantLocationIds.length || revokeLocationIds.length) {
-			const result = await personnelApi.patchPersonLocationAccess(props.personId, {
+		const originalFloorMap = normalizeFloorMap(
+			Object.fromEntries(
+				(entitlements.value.elevator || []).map((row) => [
+					row.locationId,
+					[...(row.floorIndexes || [])],
+				]),
+			),
+		)
+		const nextFloorMap = normalizeFloorMap(draftElevatorFloors.value)
+		const elevatorChanged =
+			showElevator.value &&
+			floorMapFingerprint(originalFloorMap) !== floorMapFingerprint(nextFloorMap)
+
+		if (!locationChanged && !elevatorChanged) {
+			toast.success("授權未變更")
+			return
+		}
+
+		if (locationChanged) {
+			await personnelApi.patchPersonLocationAccess(props.personId, {
 				grantLocationIds,
 				revokeLocationIds,
-				sync: true,
+				sync: false,
 			})
-			jobId = result.deviceSync?.jobId || null
 		}
 
-		if (showElevator.value) {
-			const byLocation: Record<string, number[]> = {}
-			for (const [locId, floors] of Object.entries(draftElevatorFloors.value)) {
-				const list = (floors || []).map(Number).filter((n) => Number.isFinite(n) && n > 0)
-				if (list.length) byLocation[String(locId)] = list
-			}
-			const hasAny = Object.keys(byLocation).length > 0
-			const elevResult = await personnelApi.replacePersonLadderCard(
+		if (elevatorChanged) {
+			const hasAny = Object.keys(nextFloorMap).length > 0
+			await personnelApi.replacePersonLadderCard(
 				props.personId,
-				hasAny ? { floors: { byLocation }, sync: true } : { clear: true },
+				hasAny
+					? { floors: { byLocation: nextFloorMap }, sync: false }
+					: { clear: true, sync: false },
 			)
-			const elevJob = (elevResult as { deviceSync?: { jobId?: string } })?.deviceSync?.jobId
-			if (elevJob) jobId = elevJob
 		}
 
-		toast.success(jobId ? "授權已套用，正在同步設備…" : "授權已套用")
+		const domains = [
+			...(locationChanged ? (["access", "plates"] as const) : []),
+			...(elevatorChanged ? (["elevator"] as const) : []),
+		]
+		const { jobId } = await personnelApi.startPersonSyncJob(props.personId, {
+			domains: [...domains],
+			grantLocationIds,
+			revokeLocationIds,
+		})
+		toast.success("授權已套用，正在同步設備…")
 		emit("applied")
-		if (jobId) await pollJob(props.personId, jobId)
-		else await load()
+		await pollJob(props.personId, jobId)
 	} catch (err) {
 		handleError(err, "套用授權失敗")
 	} finally {
