@@ -6,6 +6,7 @@ import type {
 	RollCallReportSession,
 	RollCallRule,
 	RollCallRuleDraft,
+	RollCallAttendanceRow,
 	RollCallSessionDetail,
 	RollCallTodayLocation,
 } from "~/types/rollCall"
@@ -44,6 +45,24 @@ export const useRollCallApi = () => {
 	const getSession = (id: number) =>
 		request<{ session: RollCallSessionDetail }>(`/roll-call/sessions/${id}`)
 
+	const getExpectedRoster = (
+		locationId: number,
+		params: { ruleId: number; date: string },
+	) => {
+		const q = new URLSearchParams({
+			ruleId: String(params.ruleId),
+			date: params.date,
+		})
+		return request<{
+			locationId: number
+			ruleId: number
+			sessionDate: string
+			rosterActive: boolean
+			expectedCount: number
+			attendance: RollCallAttendanceRow[]
+		}>(`/roll-call/locations/${locationId}/expected-roster?${q.toString()}`)
+	}
+
 	const getHistory = (limit = 50, offset = 0) =>
 		request<{
 			total: number
@@ -68,10 +87,14 @@ export const useRollCallApi = () => {
 		}>(`/roll-call/report?${q.toString()}`)
 	}
 
+	/** 人數多時 list／replace／Excel 可能超過預設 5s */
+	const ASSIGNMENT_REQUEST_TIMEOUT_MS = 120_000
+
 	const listAssignments = (locationId: number, startDate: string, endDate: string) => {
 		const q = new URLSearchParams({ startDate, endDate })
 		return request<{ assignments: RollCallAssignment[] }>(
 			`/roll-call/locations/${locationId}/assignments?${q.toString()}`,
+			{ timeout: ASSIGNMENT_REQUEST_TIMEOUT_MS },
 		)
 	}
 
@@ -85,13 +108,13 @@ export const useRollCallApi = () => {
 	) =>
 		request<{ assignments: RollCallAssignment[] }>(
 			`/roll-call/locations/${locationId}/assignments`,
-			{ method: "PUT", body },
+			{ method: "PUT", body, timeout: ASSIGNMENT_REQUEST_TIMEOUT_MS },
 		)
 
 	const downloadAssignmentTemplate = (locationId: number) =>
-		requestBlob(
-			`/roll-call/locations/${locationId}/assignments/import-template`,
-		)
+		requestBlob(`/roll-call/locations/${locationId}/assignments/import-template`, {
+			timeout: ASSIGNMENT_REQUEST_TIMEOUT_MS,
+		})
 
 	const importAssignments = (locationId: number, form: FormData) =>
 		request<{
@@ -109,6 +132,7 @@ export const useRollCallApi = () => {
 		listRules,
 		replaceLocationRules,
 		getSession,
+		getExpectedRoster,
 		getHistory,
 		getReport,
 		listAssignments,

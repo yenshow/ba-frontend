@@ -88,7 +88,7 @@
 									:disabled="busy"
 									@click="handleDownloadTemplate"
 								>
-									{{ downloadingTemplate ? "下載中..." : "下載 Excel 範本" }}
+									{{ downloadingTemplate ? "下載中..." : "下載 Excel" }}
 								</button>
 								<input
 									ref="excelInputRef"
@@ -121,9 +121,9 @@
 								:class="tableDimmed ? 'pointer-events-none opacity-40' : 'opacity-100'"
 							>
 								<colgroup>
-									<col class="w-[11%]" />
-									<col class="w-[11%]" />
-									<col v-for="day in DAY_KEYS" :key="`col-${day}`" class="w-[11.14%]" />
+									<col class="w-[12%]" />
+									<col class="w-[12%]" />
+									<col v-for="day in DAY_KEYS" :key="`col-${day}`" class="w-[10.85%]" />
 								</colgroup>
 								<thead class="sticky top-0 z-10 bg-[#0a2a3d]">
 									<tr class="border-b border-white/15 text-left text-white/70">
@@ -176,6 +176,7 @@
 												:aria-label="`${row.employeeNo || row.fullName} ${day} 班別`"
 												:disabled="busy || !canEdit"
 												:value="ruleSelectValue(row.days[day])"
+												:style="daySelectStyle(row.days[day])"
 												@change="handleDayChange(row.personId, day, $event)"
 											>
 												<option value="">休</option>
@@ -234,12 +235,17 @@
 			</div>
 
 			<footer class="flex flex-wrap items-center justify-between gap-3">
-				<p class="text-sm text-white/55">
-					<template v-if="allowEdit">
-						每人每日一格；空週預設第一個班別，可改休（休假仍顯示、不計應到）。須「儲存本週」後主畫面才生效。大量調班用群組／搜尋／分頁或 Excel。
-					</template>
-					<template v-else>僅可確認排班（唯讀）；編輯／設休請另授「排班編輯」權限。</template>
-				</p>
+				<div class="min-w-0 space-y-1 text-sm text-white/55">
+					<p v-if="allowEdit && isDirty" class="font-medium text-amber-200/95" role="status">
+						有未儲存變更（尚未生效）— 請按「儲存本週」後主畫面才依排班篩應到。
+					</p>
+					<p>
+						<template v-if="allowEdit">
+							建議下載 Excel 填寫後匯入；此處可微調單週。畫面預填≠已落庫，須「儲存本週」或匯入後才生效。
+						</template>
+						<template v-else>僅可確認排班（唯讀）；編輯／設休請另授「排班編輯」權限。</template>
+					</p>
+				</div>
 				<div class="flex gap-3">
 					<button type="button" class="btn-secondary" :disabled="busy" @click="handleClose">
 						{{ allowEdit ? "取消" : "關閉" }}
@@ -251,7 +257,7 @@
 						:disabled="busy || rules.length === 0 || rows.length === 0"
 						@click="handleSave"
 					>
-						{{ saving ? "儲存中..." : "儲存本週" }}
+						{{ saving ? "儲存中..." : isDirty ? "儲存本週（尚未生效）" : "儲存本週" }}
 					</button>
 				</div>
 			</footer>
@@ -291,6 +297,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { FORM_UNSAVED_CLOSE_CONFIRM } from "~/utils/formDialog";
 import { fetchAllPaged } from "~/utils/pagingUtils";
 import { ALL_PERSON_GROUP_FILTER_ID } from "~/utils/personnelUtils";
+import { shiftColorForRuleId } from "~/utils/rollCallShiftColors";
 
 const DAY_KEYS: RollCallAssignmentDayKey[] = ["一", "二", "三", "四", "五", "六", "日"];
 const PAGE_SIZE = 50;
@@ -301,7 +308,7 @@ const WEEKDAY_OFFSET: Record<string, number> = {
 	Thu: 3,
 	Fri: 4,
 	Sat: 5,
-	Sun: 6,
+	Sun: 6
 };
 
 const formatYmdUtc = (date: Date) => {
@@ -324,7 +331,7 @@ const addMonthsYmd = (ymd: string, deltaMonths: number) => {
 	const utc = Date.UTC(
 		Number(match[1]),
 		Number(match[2]) - 1 + deltaMonths,
-		Number(match[3]),
+		Number(match[3])
 	);
 	return formatYmdUtc(new Date(utc));
 };
@@ -344,9 +351,9 @@ const todayYmdTaipei = () => {
 		timeZone: "Asia/Taipei",
 		year: "numeric",
 		month: "2-digit",
-		day: "2-digit",
+		day: "2-digit"
 	}).formatToParts(new Date());
-	const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
+	const get = (type: string) => parts.find(part => part.type === type)?.value || "";
 	return `${get("year")}-${get("month")}-${get("day")}`;
 };
 
@@ -356,12 +363,12 @@ const mondayOf = (date: Date) => {
 		year: "numeric",
 		month: "2-digit",
 		day: "2-digit",
-		weekday: "short",
+		weekday: "short"
 	}).formatToParts(date);
-	const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
+	const get = (type: string) => parts.find(part => part.type === type)?.value || "";
 	return addDaysYmd(
 		`${get("year")}-${get("month")}-${get("day")}`,
-		-(WEEKDAY_OFFSET[get("weekday")] ?? 0),
+		-(WEEKDAY_OFFSET[get("weekday")] ?? 0)
 	);
 };
 
@@ -440,6 +447,16 @@ const showInitialLoading = computed(() => loading.value && rows.value.length ===
 const tableDimmed = computed(
 	() => (loading.value || importing.value) && rows.value.length > 0
 );
+
+const ruleIdsInOrder = computed(() => rules.value.map(rule => rule.id));
+
+const daySelectStyle = (ruleId: number | null) => {
+	const color = shiftColorForRuleId(ruleId, ruleIdsInOrder.value);
+	return {
+		backgroundColor: color.bg,
+		color: color.text
+	};
+};
 
 const scrollTableToTop = () => {
 	const el = tableScrollRef.value;
@@ -740,7 +757,7 @@ watch(
 </script>
 
 <style scoped>
-/* 沿用 form-input-small 字級，僅收左右 padding 並留箭頭空間 */
+/* 沿用 form-input-small 字級，僅收左右 padding 並留箭頭空間；色碼由 inline style 覆寫底色 */
 .roll-call-day-select {
 	box-sizing: border-box;
 	min-width: 0;

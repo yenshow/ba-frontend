@@ -13,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
 import type { Device } from "~/types/device"
 import type { PersonGroup } from "~/types/personnel"
 import type { RollCallLocation, RollCallZone } from "~/types/rollCall"

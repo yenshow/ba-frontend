@@ -88,10 +88,22 @@
 						:enlarged="isOverviewCollapsed"
 						empty-title="請選擇地點"
 						empty-description="請在地點管理新增時段簽到地點"
-						content-class="gap-12"
+						content-class="gap-4 2xl:gap-5"
 					>
 						<template v-if="selected">
+							<p
+								v-if="activeSummary?.status === 'closed'"
+								class="shrink-0 rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-sm text-white/80 2xl:text-base"
+								role="status"
+							>
+								目前為已結場快照；統計不再隨門禁名單變更。
+							</p>
 							<LocationStatsPanel class="shrink-0" :items="statCards" />
+							<RollCallSessionSwitcher
+								:model-value="selectedSessionKey"
+								:sessions="selected.sessions || []"
+								@update:model-value="handleSelectSession"
+							/>
 							<div class="flex min-h-0 min-w-0 flex-1 gap-3 2xl:gap-4">
 								<RollCallGroupFilter
 									v-model:selected-group-id="selectedGroupId"
@@ -100,6 +112,7 @@
 								/>
 								<RollCallAttendanceCards
 									:rows="filteredAttendance"
+									:session-status="activeSummary?.status ?? null"
 									:empty-message="attendanceEmptyMessage"
 									:compact="!isOverviewCollapsed"
 								/>
@@ -194,11 +207,12 @@
 			:location-id="selectedLocationId"
 			:location-name="selected?.name"
 			data-source="access_control"
+			purpose="roll_call"
 			:can-edit-members="canEditAccessMembers"
 			:can-device-sync="canResyncAccessDevices"
 			:access-sync="accessSync"
 			@synced="handleAccessManageSynced"
-			@members-updated="handleAccessManageSynced"
+			@members-updated="handleAccessMembersUpdated"
 		/>
 		<SimulationFrame v-model="showReportFrame" title="時段簽到 - 完整報表">
 			<RollCallSimulation
@@ -232,6 +246,7 @@ import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.
 import RollCallOverviewCard from "~/components/roll-call/RollCallOverviewCard.vue";
 import RollCallAttendanceCards from "~/components/roll-call/RollCallAttendanceCards.vue";
 import RollCallGroupFilter from "~/components/roll-call/RollCallGroupFilter.vue";
+import RollCallSessionSwitcher from "~/components/roll-call/RollCallSessionSwitcher.vue";
 import RollCallSimulation from "~/components/roll-call/RollCallSimulation.vue";
 import RollCallAssignmentDialog from "~/components/roll-call/RollCallAssignmentDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
@@ -303,7 +318,10 @@ const accessSync = useLocationAccessSync({
 const zones = ref<RollCallZone[]>([]);
 const todayLocations = ref<RollCallTodayLocation[]>([]);
 const selectedLocationId = ref<number | null>(null);
+/** 手動選班：`${ruleId}:${sessionDate}`；null＝跟主場次 */
+const selectedSessionKey = ref<string | null>(null);
 const detail = ref<RollCallSessionDetail | null>(null);
+const previewAttendance = ref<RollCallAttendanceRow[]>([]);
 const selectedGroupId = ref<number | null>(null);
 const isOverviewCollapsed = ref(false);
 const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync();
@@ -381,6 +399,9 @@ const handleReportTimeRangeUpdate = (v: { startDate: string; endDate: string; pr
 	void loadReport();
 };
 
+const sessionKeyOf = (session: RollCallSessionSummary) =>
+	`${session.ruleId}:${session.sessionDate}`;
+
 const pickPrimarySession = (sessions: RollCallSessionSummary[] = []) =>
 	sessions.find(item => item.status === "open") ||
 	sessions.find(item => item.status === "closed") ||
@@ -390,7 +411,16 @@ const pickPrimarySession = (sessions: RollCallSessionSummary[] = []) =>
 const selected = computed(
 	() => todayLocations.value.find(item => item.locationId === selectedLocationId.value) || null
 );
-const activeSummary = computed(() => pickPrimarySession(selected.value?.sessions));
+
+const activeSummary = computed(() => {
+	const sessions = selected.value?.sessions || [];
+	if (selectedSessionKey.value) {
+		const picked = sessions.find(item => sessionKeyOf(item) === selectedSessionKey.value);
+		if (picked) return picked;
+	}
+	return pickPrimarySession(sessions);
+});
+
 const statCards = computed(() => {
 	const labels = normalizeRollCallStatLabels(selected.value?.statLabels);
 	return [
@@ -401,15 +431,20 @@ const statCards = computed(() => {
 });
 
 const attendanceEmptyMessage = computed(() => {
-	if (activeSummary.value?.status === "not_started") return "時段尚未開始";
+	if (activeSummary.value?.status === "not_started") {
+		return previewAttendance.value.length === 0 ? "時段尚未開始，尚無應到預覽" : "時段尚未開始";
+	}
 	if (!activeSummary.value) return "今日無簽到時段";
 	if (selectedGroupId.value != null && filteredAttendance.value.length === 0) {
-		return "此群組尚無人員";
+		return "此檢視群組尚無人員";
 	}
 	return "尚無簽到紀錄";
 });
 
-const attendanceRows = computed((): RollCallAttendanceRow[] => detail.value?.attendance || []);
+const attendanceRows = computed((): RollCallAttendanceRow[] => {
+	if (activeSummary.value?.status === "not_started") return previewAttendance.value;
+	return detail.value?.attendance || [];
+});
 
 const filteredAttendance = computed(() => {
 	const rows = attendanceRows.value;
@@ -444,9 +479,30 @@ const groupFilterItems = computed(() => {
 	}
 
 	const units = selected.value?.units || [];
+	const primary = pickPrimarySession(selected.value?.sessions || []);
+	const viewingPrimary =
+		!primary ||
+		!activeSummary.value ||
+		sessionKeyOf(primary) === sessionKeyOf(activeSummary.value);
+	// 有出勤列或非主場次：以目前場次名單計數（today.units 僅對齊主場次）
 	const items =
-		units.length > 0
-			? units.map(unit => {
+		rows.length > 0 || !viewingPrimary || units.length === 0
+			? [...tallies.entries()]
+					.sort(([a], [b]) => {
+						if (a === UNGROUPED_PERSON_GROUP_ID) return 1;
+						if (b === UNGROUPED_PERSON_GROUP_ID) return -1;
+						return (tallies.get(a)?.name || "").localeCompare(
+							tallies.get(b)?.name || "",
+							"zh-Hant"
+						);
+					})
+					.map(([id, t]) => ({
+						id,
+						name: t.name,
+						presentCount: t.presentCount,
+						totalCount: t.totalCount
+					}))
+			: units.map(unit => {
 					const t = tallies.get(unit.id);
 					return {
 						id: unit.id,
@@ -454,19 +510,7 @@ const groupFilterItems = computed(() => {
 						presentCount: t?.presentCount ?? unit.currentCount ?? 0,
 						totalCount: t?.totalCount ?? unit.totalCount ?? 0
 					};
-				})
-			: [...tallies.entries()]
-					.sort(([a], [b]) => {
-						if (a === UNGROUPED_PERSON_GROUP_ID) return 1;
-						if (b === UNGROUPED_PERSON_GROUP_ID) return -1;
-						return (tallies.get(a)?.name || "").localeCompare(tallies.get(b)?.name || "", "zh-Hant");
-					})
-					.map(([id, t]) => ({
-						id,
-						name: t.name,
-						presentCount: t.presentCount,
-						totalCount: t.totalCount
-					}));
+				});
 
 	const allPresent = items.reduce((sum, item) => sum + item.presentCount, 0);
 	const allTotal = items.reduce((sum, item) => sum + item.totalCount, 0);
@@ -525,12 +569,45 @@ const persistLocationRules = async (
 };
 
 const loadSessionDetail = async (summary: RollCallSessionSummary | null) => {
-	if (!summary?.id || summary.status === "not_started") {
+	previewAttendance.value = [];
+	if (!summary) {
 		detail.value = null;
+		return;
+	}
+	if (summary.status === "not_started" || summary.id == null) {
+		detail.value = null;
+		const locationId = selectedLocationId.value;
+		if (locationId == null) return;
+		try {
+			const preview = await rollCallApi.getExpectedRoster(locationId, {
+				ruleId: summary.ruleId,
+				date: summary.sessionDate
+			});
+			previewAttendance.value = preview.attendance || [];
+		} catch (error) {
+			handleApiError(error, "載入應到預覽失敗");
+			previewAttendance.value = [];
+		}
 		return;
 	}
 	const res = await rollCallApi.getSession(summary.id);
 	detail.value = res.session;
+};
+
+const syncSelectedSessionKey = () => {
+	const sessions = selected.value?.sessions || [];
+	if (sessions.length === 0) {
+		selectedSessionKey.value = null;
+		return;
+	}
+	if (
+		selectedSessionKey.value &&
+		sessions.some(item => sessionKeyOf(item) === selectedSessionKey.value)
+	) {
+		return;
+	}
+	const primary = pickPrimarySession(sessions);
+	selectedSessionKey.value = primary ? sessionKeyOf(primary) : null;
 };
 
 const loadToday = async () => {
@@ -542,69 +619,25 @@ const loadToday = async () => {
 	) {
 		selectedLocationId.value = todayLocations.value[0]?.locationId ?? null;
 		selectedGroupId.value = null;
+		selectedSessionKey.value = null;
 	}
+	syncSelectedSessionKey();
 	await loadSessionDetail(activeSummary.value);
 };
 
 const handleSelectLocation = async (locationId: number) => {
 	selectedLocationId.value = locationId;
 	selectedGroupId.value = null;
-	const location = todayLocations.value.find(item => item.locationId === locationId);
-	await loadSessionDetail(pickPrimarySession(location?.sessions));
+	selectedSessionKey.value = null;
+	syncSelectedSessionKey();
+	await loadSessionDetail(activeSummary.value);
 };
 
-const tallyAttendance = (attendance: RollCallAttendanceRow[]) => {
-	const expectedCount = attendance.filter(row => row.status !== "leave").length;
-	const presentCount = attendance.filter(row => row.status === "present").length;
-	return {
-		expectedCount,
-		presentCount,
-		absentCount: Math.max(0, expectedCount - presentCount)
-	};
-};
-
-const unitsFromAttendance = (attendance: RollCallAttendanceRow[]) => {
-	const map = new Map<
-		number,
-		{ id: number; name: string; currentCount: number; totalCount: number }
-	>();
-	for (const row of attendance) {
-		const id = row.groupId ?? UNGROUPED_PERSON_GROUP_ID;
-		const cur = map.get(id) || {
-			id,
-			name: row.groupName || "未分組",
-			currentCount: 0,
-			totalCount: 0
-		};
-		if (row.status !== "leave") cur.totalCount += 1;
-		if (row.status === "present") cur.currentCount += 1;
-		map.set(id, cur);
-	}
-	return [...map.values()].sort((a, b) => {
-		if (a.id === UNGROUPED_PERSON_GROUP_ID) return 1;
-		if (b.id === UNGROUPED_PERSON_GROUP_ID) return -1;
-		return a.name.localeCompare(b.name, "zh-Hant");
-	});
-};
-
-const applySessionToToday = (session: RollCallSessionDetail) => {
-	todayLocations.value = todayLocations.value.map(loc => {
-		if (loc.locationId !== session.locationId) return loc;
-		return {
-			...loc,
-			sessions: (loc.sessions || []).map(item =>
-				item.id === session.id
-					? {
-							...item,
-							expectedCount: session.expectedCount,
-							presentCount: session.presentCount,
-							absentCount: session.absentCount
-						}
-					: item
-			),
-			units: unitsFromAttendance(session.attendance || [])
-		};
-	});
+const handleSelectSession = async (key: string) => {
+	if (selectedSessionKey.value === key) return;
+	selectedSessionKey.value = key;
+	selectedGroupId.value = null;
+	await loadSessionDetail(activeSummary.value);
 };
 
 const handleResetStats = () => {
@@ -625,6 +658,12 @@ const handleConfirmResetStats = async () => {
 
 const handleAccessManageSynced = async () => {
 	await loadToday();
+};
+
+const handleAccessMembersUpdated = async () => {
+	await loadToday();
+	const expected = activeSummary.value?.expectedCount ?? 0;
+	showToast("success", `${TOAST.ROLL_CALL_MEMBERS_ALIGNED}（應到 ${expected}）`);
 };
 
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =

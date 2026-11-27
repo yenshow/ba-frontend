@@ -2,7 +2,7 @@
 	<aside
 		class="flex min-h-0 shrink-0 flex-col"
 		:class="compact ? 'w-[96px]' : 'w-[140px] 2xl:w-[168px]'"
-		aria-label="群組篩選"
+		aria-label="檢視群組（僅篩選畫面，不改應到）"
 	>
 		<div class="show-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
 			<button

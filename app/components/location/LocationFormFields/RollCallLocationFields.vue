@@ -94,6 +94,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref, watch } from "vue";
 import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel";
 import type { Device } from "~/types/device";
 import type { RollCallLocation, RollCallRuleDraft } from "~/types/rollCall";
